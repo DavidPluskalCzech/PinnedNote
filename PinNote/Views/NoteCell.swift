@@ -71,8 +71,6 @@ final class NoteCell: UITableViewCell {
         cardView.layer.cornerRadius     = cardRadius
         cardView.layer.cornerCurve      = .continuous
         cardView.layer.masksToBounds    = true
-        cardView.layer.shouldRasterize  = true
-        cardView.layer.rasterizationScale = UIScreen.main.scale
         cardView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(cardView)
 
@@ -142,7 +140,8 @@ final class NoteCell: UITableViewCell {
 
         // Selection ring
         let ringSize: CGFloat = 22
-        selectionRing.isHidden           = true
+        selectionRing.isHidden           = false
+        selectionRing.alpha              = 0
         selectionRing.layer.cornerRadius  = ringSize / 2
         selectionRing.layer.borderWidth   = 1.5
         selectionRing.layer.borderColor   = UIColor.pnPrimary.cgColor
@@ -152,7 +151,8 @@ final class NoteCell: UITableViewCell {
 
         // Selection fill
         let fillSize: CGFloat = ringSize - 8
-        selectionFill.isHidden           = true
+        selectionFill.isHidden           = false
+        selectionFill.alpha              = 0
         selectionFill.layer.cornerRadius  = fillSize / 2
         selectionFill.backgroundColor     = .pnPrimary
         selectionFill.translatesAutoresizingMaskIntoConstraints = false
@@ -266,7 +266,7 @@ final class NoteCell: UITableViewCell {
     func applySelected(_ selected: Bool, animated: Bool = true) {
         selectionFill.layer.removeAllAnimations()
         let block = {
-            self.selectionFill.isHidden = !selected
+            self.selectionFill.alpha = selected ? 1 : 0
         }
         guard animated else {
             block()
@@ -283,8 +283,8 @@ final class NoteCell: UITableViewCell {
 
     private func setEditMode(_ editing: Bool) {
         textLeadingConstraint.constant = editing ? 44 : PN.padding
-        selectionRing.isHidden = !editing
-        selectionFill.isHidden = true
+        selectionRing.alpha = editing ? 1 : 0
+        selectionFill.alpha = 0
         cardView.layoutIfNeeded()
     }
 

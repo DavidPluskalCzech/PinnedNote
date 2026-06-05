@@ -311,7 +311,6 @@ final class NoteListViewController: UIViewController {
 
     private func toggleEditMode() {
         isInEditMode.toggle()
-        let enteringEditMode = isInEditMode
         selectedIDs.removeAll()
         dragSelectPathIDs.removeAll()
         dragSelectInitialSelectedIDs.removeAll()
@@ -323,9 +322,9 @@ final class NoteListViewController: UIViewController {
         stopDragSelectAutoScroll()
         // Do NOT use tableView.setEditing — that shows the system's native circles.
         // Drive edit-mode UI entirely through the cell's applyEditMode method.
-        tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach {
-            $0.applyEditMode(isInEditMode, animated: enteringEditMode)
-            $0.applySelected(false, animated: enteringEditMode)
+        let visibleRows = tableView.indexPathsForVisibleRows ?? []
+        UIView.performWithoutAnimation {
+            tableView.reloadRows(at: visibleRows, with: .none)
         }
         bottomBar.setEditMode(isInEditMode)
         bottomBar.setDeleteEnabled(false)
