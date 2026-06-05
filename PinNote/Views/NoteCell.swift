@@ -271,24 +271,38 @@ final class NoteCell: UITableViewCell {
 
         let block = {
             self.textLeadingConstraint.constant = editing ? 44 : PN.padding
-            self.selectionRing.isHidden = !editing
             self.selectionRing.alpha = editing ? 1 : 0
-            self.selectionFill.isHidden = !(editing && selected)
             self.selectionFill.alpha = editing && selected ? 1 : 0
+            self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
+            self.selectionFill.transform = editing && selected ? .identity : CGAffineTransform(scaleX: 0.72, y: 0.72)
             self.cardView.layoutIfNeeded()
         }
 
         guard animated else {
             UIView.performWithoutAnimation(block)
+            selectionRing.isHidden = !editing
+            selectionFill.isHidden = !(editing && selected)
             return
         }
 
+        if editing {
+            selectionRing.isHidden = false
+        }
+        if editing && selected {
+            selectionFill.isHidden = false
+        }
+
         UIView.animate(
-            withDuration: 0.18,
+            withDuration: 0.28,
             delay: 0,
+            usingSpringWithDamping: 0.86,
+            initialSpringVelocity: 0,
             options: [.beginFromCurrentState, .allowUserInteraction],
             animations: block
-        )
+        ) { _ in
+            self.selectionRing.isHidden = !editing
+            self.selectionFill.isHidden = !(editing && selected)
+        }
     }
 
     // MARK: - Quick pin reveal

@@ -328,26 +328,9 @@ final class NoteListViewController: UIViewController {
         resetDragSelectionState()
         tableView.setEditing(false, animated: false)
         tableView.endEditing(true)
-        tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
-            guard let indexPath = tableView.indexPath(for: cell),
-                  indexPath.row < NoteStore.shared.notes.count else {
-                cell.resetSelectionIndicator()
-                return
-            }
-
-            cell.configure(
-                with: NoteStore.shared.notes[indexPath.row],
-                editing: isInEditMode,
-                selected: false
-            )
-        }
         // Do NOT use tableView.setEditing — that shows the system's native circles.
         // Drive edit-mode UI entirely through the cell's own selection state.
-        UIView.performWithoutAnimation {
-            tableView.reloadData()
-            tableView.layoutIfNeeded()
-        }
-        syncVisibleSelectionCells(animated: false)
+        syncVisibleSelectionCells(animated: true)
         DispatchQueue.main.async { [weak self] in
             self?.syncVisibleSelectionCells(animated: false)
         }
