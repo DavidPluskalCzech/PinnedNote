@@ -1,0 +1,96 @@
+/* Bottom toolbar — note list */
+"toolbar_edit" = "सम्पादन";
+"toolbar_cancel" = "रद्द गर्नुहोस्";
+
+/* Bottom toolbar — note detail */
+"detail_toolbar_delete" = "मेटाउनुहोस्";
+"detail_toolbar_pin" = "पिन";
+"detail_toolbar_unpin" = "अनपिन";
+
+/* Theme picker */
+"theme_light" = "उज्यालो";
+"theme_dark" = "अँध्यारो";
+"theme_blossom" = "फूल";
+
+/* Onboarding */
+"ob_welcome_to" = "PinnedNote मा स्वागत छ";
+"ob_capture_thoughts" = "आइडिया र नोटहरू छिटो लेख्नको लागि सरल ठाउँ";
+"ob_seven_days_free" = "१४ दिन निःशुल्क";
+"ob_coffee_body" = "यो एक जनाले बनाएको हो — तपाईंका लागि। यदि यो तपाईंको दैनिक जीवनको हिस्सा बन्छ भने, एक कप कफीले यसलाई निरन्तर अगाडि बढाउन मद्दत गर्छ।";
+"ob_continue" = "जारी राख्नुहोस्";
+"ob_get_started" = "सुरु गर्नुहोस्";
+"ob_capture_ideas_title" = "आइडिया लेख्नुहोस्";
+"ob_capture_ideas_body" = "आइडिया आएको बेला\nPinnedNote मा तुरुन्तै नोट गर्न सक्नुहुन्छ";
+"ob_pin_lock_title" = "लक स्क्रिनमा पिन गर्नुहोस्";
+"ob_pin_lock_body" = "महत्त्वपूर्ण नोटहरू सधैं देखिने ठाउँमा राख्नुहोस्";
+"ob_write_now_title" = "अहिले नै लेख्नुहोस्";
+"ob_write_now_body" = "लक स्क्रिनबाट सिधै\nआइडिया लेख्न सक्नुहुन्छ";
+
+/* Note List */
+"list_trial_ended_banner" = "निःशुल्क परीक्षण समाप्त भयो।";
+"list_upgrade" = "अपग्रेड";
+"list_delete_note_singular" = "नोट मेटाउन चाहनुहुन्छ?";
+"list_delete_notes_plural" = "%d वटा नोट मेटाउन चाहनुहुन्छ?";
+"list_delete" = "मेटाउनुहोस्";
+"list_cancel" = "रद्द गर्नुहोस्";
+"list_no_notes" = "अहिलेसम्म कुनै नोट छैन";
+"list_write_first" = "पहिलो नोट लेख्नुहोस्।";
+"pin_toast_pinned" = "लक स्क्रिनमा पिन भयो";
+"pin_toast_unpinned" = "लक स्क्रिनबाट अनपिन भयो";
+"copy_toast_copied" = "क्लिपबोर्डमा कपी भयो";
+"schedule_toast_set" = "टाइमर सेट भयो";
+"schedule_toast_cleared" = "टाइमर हटाइयो";
+"schedule_notification_title" = "नोट पिन गर्ने समय भयो";
+
+/* Note Detail */
+"detail_trial_ended_title" = "परीक्षण समाप्त";
+"detail_trial_ended_message" = "निःशुल्क परीक्षण समाप्त भयो। लक स्क्रिनमा नोट पिन गर्न र पछि पिन गर्ने सुविधा प्रयोग गर्न PinnedNote Pro मा अपग्रेड गर्नुहोस्।";
+"detail_upgrade" = "अपग्रेड";
+"detail_not_now" = "अहिले होइन";
+"detail_delete_note" = "नोट मेटाउन चाहनुहुन्छ?";
+"detail_delete" = "मेटाउनुहोस्";
+"detail_cancel" = "रद्द गर्नुहोस्";
+"detail_done" = "सम्पन्न";
+"detail_title_placeholder" = "शीर्षक";
+"schedule_pin_title" = "पछि पिन गर्नुहोस्";
+"schedule_set" = "सेट";
+"schedule_clear" = "हटाउनुहोस्";
+"schedule_cancel" = "रद्द गर्नुहोस्";
+
+/* Settings */
+"settings_title" = "सेटिङ्स";
+"settings_sync_header" = "नोटहरू सुरक्षित रूपमा राख्नुहोस्";
+"settings_appearance_header" = "थिम";
+"settings_pro_header" = "PinnedNote Pro";
+"settings_upgrade_header" = "अपग्रेड";
+"settings_upgrade_footer" = "मासिक सदस्यता स्वतः नवीकरण हुन्छ। आजीवन योजना एक पटकको खरिद हो।";
+"settings_pro_active" = "PinnedNote Pro — सक्रिय";
+"settings_icloud_sync" = "iCloud समिकरण";
+"settings_days_remaining_singular" = "निःशुल्क परीक्षणका %d दिन बाँकी";
+"settings_days_remaining_plural" = "निःशुल्क परीक्षणका %d दिन बाँकी";
+"settings_trial_ended" = "निःशुल्क परीक्षण समाप्त";
+"settings_restore" = "खरिद पुनर्स्थापना";
+"settings_feedback" = "प्रतिक्रिया पठाउनुहोस्";
+"settings_feedback_detail" = "सुझाव, सुधारका विचार वा बग रिपोर्ट";
+"settings_version" = "संस्करण %@";
+"settings_monthly_title" = "मासिक";
+"settings_price_loading" = "लोड हुँदैछ";
+"settings_monthly_subtitle" = "प्रति महिना";
+"settings_lifetime_title" = "आजीवन";
+"settings_lifetime_subtitle" = "एक पटक";
+"settings_purchase_failed" = "खरिद असफल भयो";
+"settings_ok" = "ठिक छ";
+"settings_feedback_alert_title" = "प्रतिक्रिया पठाउनुहोस्";
+"settings_feedback_alert_message" = "कृपया यहाँ सम्पर्क गर्नुहोस्:\n%@";
+"settings_copy_email" = "इमेल प्रतिलिपि गर्नुहोस्";
+"settings_pro_features" = "१४ दिनको निःशुल्क परीक्षण अवधिमा सबै सुविधाहरू प्रयोग गर्न सक्नुहुन्छ — नोटहरूलाई लक स्क्रिनमा पिन गर्न, पछि पिन गर्ने सुविधा प्रयोग गर्न र तुरुन्त लेख्न सक्नुहुन्छ। परीक्षणपछि यी सुविधाहरू PinnedNote Pro मार्फत उपलब्ध हुन्छन्।";
+"settings_privacy_policy" = "गोपनीयता नीति";
+"settings_terms_of_use" = "उपयोग की शर्तें";
+"purchase_error_products_unavailable" = "उत्पादनहरू लोड गर्न सकिएन। जडान जाँच गरेर फेरि प्रयास गर्नुहोस्।";
+"purchase_error_unverified" = "खरिद प्रमाणित गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।";
+"purchase_error_failed" = "खरिद असफल भयो। कृपया फेरि प्रयास गर्नुहोस्।";
+"purchase_error_restore_failed" = "खरिद पुनर्स्थापना असफल भयो। कृपया फेरि प्रयास गर्नुहोस्।";
+
+/* Storage */
+"storage_error_title" = "नोट भण्डारणमा समस्या";
+"storage_error_icloud_unavailable" = "iCloud storage उपलब्ध छैन। यो app का लागि iCloud Drive सक्षम छ कि छैन जाँच गर्नुहोस्।";

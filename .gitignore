@@ -1,0 +1,21 @@
+.DS_Store
+
+# Local assistant/editor state
+.claude/
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+
+# Build output
+build/
+DerivedData/
+*.moved-aside
+
+# Swift Package Manager local state
+.swiftpm/
+.build/
+Package.resolved
+
+# Local screenshots and scratch files
+Other files/

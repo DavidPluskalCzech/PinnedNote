@@ -1,0 +1,96 @@
+/* Bottom toolbar — note list */
+"toolbar_edit" = "編集";
+"toolbar_cancel" = "キャンセル";
+
+/* Bottom toolbar — note detail */
+"detail_toolbar_delete" = "削除";
+"detail_toolbar_pin" = "ピン留め";
+"detail_toolbar_unpin" = "ピン解除";
+
+/* Theme picker */
+"theme_light" = "ライト";
+"theme_dark" = "ダーク";
+"theme_blossom" = "ブロッサム";
+
+/* Onboarding */
+"ob_welcome_to" = "PinnedNoteへようこそ";
+"ob_capture_thoughts" = "アイデアやメモをすばやく書き留めるシンプルな空間";
+"ob_seven_days_free" = "14日間無料";
+"ob_coffee_body" = "一人で作りました — あなたのために。日常の一部になったら、コーヒー一杯で開発を続けられます。";
+"ob_continue" = "続ける";
+"ob_get_started" = "はじめる";
+"ob_capture_ideas_title" = "アイデアを記録しよう";
+"ob_capture_ideas_body" = "アイデアが浮かんだとき\nいつでもPinnedNoteですぐにメモできます";
+"ob_pin_lock_title" = "ロック画面に固定";
+"ob_pin_lock_body" = "大切なメモをいつでも目に入る場所へ";
+"ob_write_now_title" = "すぐに書く";
+"ob_write_now_body" = "ロック画面から直接アイデアを書き留められます";
+
+/* Note List */
+"list_trial_ended_banner" = "無料トライアルが終了しました。";
+"list_upgrade" = "アップグレード";
+"list_delete_note_singular" = "メモを削除しますか？";
+"list_delete_notes_plural" = "%d件のメモを削除しますか？";
+"list_delete" = "削除";
+"list_cancel" = "キャンセル";
+"list_no_notes" = "まだメモはありません";
+"list_write_first" = "最初のメモを書いてみましょう。";
+"pin_toast_pinned" = "ロック画面に固定しました";
+"pin_toast_unpinned" = "ロック画面から固定解除しました";
+"copy_toast_copied" = "クリップボードにコピーしました";
+"schedule_toast_set" = "タイマーを設定しました";
+"schedule_toast_cleared" = "タイマーを解除しました";
+"schedule_notification_title" = "メモを固定する時間です";
+
+/* Note Detail */
+"detail_trial_ended_title" = "トライアル終了";
+"detail_trial_ended_message" = "無料トライアルが終了しました。ロック画面への固定と「後で固定」を使うにはPinnedNote Proにアップグレードしてください。";
+"detail_upgrade" = "アップグレード";
+"detail_not_now" = "後で";
+"detail_delete_note" = "メモを削除しますか？";
+"detail_delete" = "削除";
+"detail_cancel" = "キャンセル";
+"detail_done" = "完了";
+"detail_title_placeholder" = "タイトル";
+"schedule_pin_title" = "後で固定";
+"schedule_set" = "設定";
+"schedule_clear" = "削除";
+"schedule_cancel" = "キャンセル";
+
+/* Settings */
+"settings_title" = "設定";
+"settings_sync_header" = "メモを安全に保管";
+"settings_appearance_header" = "テーマ";
+"settings_pro_header" = "PinnedNote Pro";
+"settings_upgrade_header" = "アップグレード";
+"settings_upgrade_footer" = "月額プランは自動更新されます。買い切りプランは一度のみの購入です。";
+"settings_pro_active" = "PinnedNote Pro — 有効";
+"settings_icloud_sync" = "iCloud同期";
+"settings_days_remaining_singular" = "無料トライアル残り%d日";
+"settings_days_remaining_plural" = "無料トライアル残り%d日";
+"settings_trial_ended" = "無料トライアル終了";
+"settings_restore" = "購入を復元";
+"settings_feedback" = "フィードバックを送信";
+"settings_feedback_detail" = "ご提案・改善案・バグ報告";
+"settings_version" = "バージョン %@";
+"settings_monthly_title" = "月額";
+"settings_price_loading" = "読み込み中";
+"settings_monthly_subtitle" = "月";
+"settings_lifetime_title" = "買い切り";
+"settings_lifetime_subtitle" = "一度のみ";
+"settings_purchase_failed" = "購入に失敗しました";
+"settings_ok" = "OK";
+"settings_feedback_alert_title" = "フィードバックを送信";
+"settings_feedback_alert_message" = "こちらにご連絡ください：\n%@";
+"settings_copy_email" = "メールをコピー";
+"settings_pro_features" = "14日間の無料トライアル中はすべての機能をご利用いただけます — ロック画面にメモを固定したり、「後で固定」を使ったり、すぐに書き留めたりできます。トライアル終了後は、これらの機能はPinnedNote Proでご利用いただけます";
+"settings_privacy_policy" = "プライバシーポリシー";
+"settings_terms_of_use" = "利用規約";
+"purchase_error_products_unavailable" = "製品を読み込めませんでした。接続を確認してもう一度お試しください。";
+"purchase_error_unverified" = "購入を確認できませんでした。もう一度お試しください。";
+"purchase_error_failed" = "購入に失敗しました。もう一度お試しください。";
+"purchase_error_restore_failed" = "購入の復元に失敗しました。もう一度お試しください。";
+
+/* Storage */
+"storage_error_title" = "メモの保存に問題があります";
+"storage_error_icloud_unavailable" = "iCloudストレージを利用できません。このアプリでiCloud Driveが有効になっているか確認してください。";

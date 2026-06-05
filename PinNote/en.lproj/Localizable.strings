@@ -1,0 +1,96 @@
+/* Bottom toolbar — note list */
+"toolbar_edit" = "Edit";
+"toolbar_cancel" = "Cancel";
+
+/* Bottom toolbar — note detail */
+"detail_toolbar_delete" = "Delete";
+"detail_toolbar_pin" = "Pin";
+"detail_toolbar_unpin" = "Unpin";
+
+/* Theme picker */
+"theme_light" = "Light";
+"theme_dark" = "Dark";
+"theme_blossom" = "Blossom";
+
+/* Onboarding */
+"ob_welcome_to" = "Welcome to\n";
+"ob_capture_thoughts" = "A minimal space to quickly capture your thoughts";
+"ob_seven_days_free" = "14 Days Free";
+"ob_coffee_body" = "Built by one person — for you. If it becomes part of your day, a one coffee helps keep it going";
+"ob_continue" = "Continue";
+"ob_get_started" = "Get Started";
+"ob_capture_ideas_title" = "Capture your ideas";
+"ob_capture_ideas_body" = "PinnedNote is ready whenever\nyour idea emerge";
+"ob_pin_lock_title" = "Pin to Lock Screen";
+"ob_pin_lock_body" = "Keep the important notes in sight";
+"ob_write_now_title" = "Write immediately";
+"ob_write_now_body" = "Write down your ideas directly\nfrom the Lock Screen";
+
+/* Note List */
+"list_trial_ended_banner" = "Your free trial has ended.";
+"list_upgrade" = "Upgrade";
+"list_delete_note_singular" = "Delete note?";
+"list_delete_notes_plural" = "Delete %d notes?";
+"list_delete" = "Delete";
+"list_cancel" = "Cancel";
+"list_no_notes" = "No notes yet?";
+"list_write_first" = "Write your first one";
+"pin_toast_pinned" = "Pinned to Lock Screen";
+"pin_toast_unpinned" = "Unpinned from Lock Screen";
+"copy_toast_copied" = "Copied to clipboard";
+"schedule_toast_set" = "Timer set";
+"schedule_toast_cleared" = "Timer cleared";
+"schedule_notification_title" = "Time to pin your note";
+
+/* Note Detail */
+"detail_trial_ended_title" = "Trial Ended";
+"detail_trial_ended_message" = "Your free trial has ended. Upgrade to PinnedNote Pro to pin notes to your Lock Screen and use Pin Later.";
+"detail_upgrade" = "Upgrade";
+"detail_not_now" = "Not Now";
+"detail_delete_note" = "Delete note?";
+"detail_delete" = "Delete";
+"detail_cancel" = "Cancel";
+"detail_done" = "Done";
+"detail_title_placeholder" = "Title";
+"schedule_pin_title" = "Pin Later";
+"schedule_set" = "Set";
+"schedule_clear" = "Remove";
+"schedule_cancel" = "Cancel";
+
+/* Settings */
+"settings_title" = "Settings";
+"settings_sync_header" = "Keep your notes safe";
+"settings_appearance_header" = "Appearance";
+"settings_pro_header" = "PinnedNote Pro";
+"settings_upgrade_header" = "Upgrade";
+"settings_upgrade_footer" = "Monthly renews automatically. Lifetime is a one-time purchase.";
+"settings_pro_active" = "PinnedNote Pro — active";
+"settings_icloud_sync" = "iCloud Sync";
+"settings_days_remaining_singular" = "%d day remaining in free trial";
+"settings_days_remaining_plural" = "%d days remaining in free trial";
+"settings_trial_ended" = "Free trial ended";
+"settings_restore" = "Restore purchase";
+"settings_feedback" = "Send Feedback";
+"settings_feedback_detail" = "Suggestions, improvement ideas, or bug reports";
+"settings_version" = "Version %@";
+"settings_monthly_title" = "Monthly";
+"settings_price_loading" = "Loading";
+"settings_monthly_subtitle" = "per month";
+"settings_lifetime_title" = "Lifetime";
+"settings_lifetime_subtitle" = "one-time";
+"settings_purchase_failed" = "Purchase failed";
+"settings_ok" = "OK";
+"settings_feedback_alert_title" = "Send Feedback";
+"settings_feedback_alert_message" = "Write to us at:\n%@";
+"settings_copy_email" = "Copy Email";
+"settings_pro_features" = "Enjoy full access during your 14-day free trial — pin notes to your Lock Screen, use Pin Later, and write instantly. After the trial, these features are available with PinnedNote Pro";
+"settings_privacy_policy" = "Privacy Policy";
+"settings_terms_of_use" = "Terms of Use";
+"purchase_error_products_unavailable" = "Could not load products. Please check your connection and try again.";
+"purchase_error_unverified" = "The purchase could not be verified. Please try again.";
+"purchase_error_failed" = "Purchase failed. Please try again.";
+"purchase_error_restore_failed" = "Restore failed. Please try again.";
+
+/* Storage */
+"storage_error_title" = "Notes storage problem";
+"storage_error_icloud_unavailable" = "iCloud storage is not available. Check that iCloud Drive is enabled for this app.";

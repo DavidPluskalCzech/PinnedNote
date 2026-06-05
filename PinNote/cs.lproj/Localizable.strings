@@ -1,0 +1,96 @@
+/* Bottom toolbar — note list */
+"toolbar_edit" = "Upravit";
+"toolbar_cancel" = "Zrušit";
+
+/* Bottom toolbar — note detail */
+"detail_toolbar_delete" = "Smazat";
+"detail_toolbar_pin" = "Připnout";
+"detail_toolbar_unpin" = "Odepnout";
+
+/* Theme picker */
+"theme_light" = "Světlý";
+"theme_dark" = "Tmavý";
+"theme_blossom" = "Sakura";
+
+/* Onboarding */
+"ob_welcome_to" = "Vítej v \n";
+"ob_capture_thoughts" = "Minimalistický prostor pro rychlé zachycení myšlenek";
+"ob_seven_days_free" = "14 dní zdarma";
+"ob_coffee_body" = "Tuto aplikaci jsem vytvořil sám. Pro sebe, a potom pro Tebe. Pokud si PinnedNote najde místo ve Tvém dni, za cenu jedné kávy mi pomůžeš aplikaci zlepšovat a udržovat aktuální";
+"ob_continue" = "Pokračovat";
+"ob_get_started" = "Začít";
+"ob_capture_ideas_title" = "Zachyť své myšlenky";
+"ob_capture_ideas_body" = "PinnedNote je připraven, kdykoli\n se objeví nápad";
+"ob_pin_lock_title" = "Připínej poznámky na zamykací obrazovku";
+"ob_pin_lock_body" = "Měj to důležité stále na očích";
+"ob_write_now_title" = "Zapisuj okamžitě";
+"ob_write_now_body" = "Nápady lze zapsat přímo ze zamykací obrazovky";
+
+/* Note List */
+"list_trial_ended_banner" = "Zkušební verze je u konce.";
+"list_upgrade" = "Upgradovat";
+"list_delete_note_singular" = "Smazat poznámku?";
+"list_delete_notes_plural" = "Smazat %d poznámky?";
+"list_delete" = "Smazat";
+"list_cancel" = "Zrušit";
+"list_no_notes" = "Zatím žádné poznámky?";
+"list_write_first" = "Napiš svou první";
+"pin_toast_pinned" = "Připnuto na zamykací obrazovku";
+"pin_toast_unpinned" = "Odepnuto ze zamykací obrazovky";
+"copy_toast_copied" = "Zkopírováno do schránky";
+"schedule_toast_set" = "Časovač nastaven";
+"schedule_toast_cleared" = "Časovač zrušen";
+"schedule_notification_title" = "Čas připnout poznámku";
+
+/* Note Detail */
+"detail_trial_ended_title" = "Zkušební verze je u konce";
+"detail_trial_ended_message" = "Zkušební verze je u konce. Pro připínání poznámek na zamykací obrazovku a funkci Připnout později upgraduj na PinnedNote Pro.";
+"detail_upgrade" = "Upgradovat";
+"detail_not_now" = "Teď ne";
+"detail_delete_note" = "Smazat poznámku?";
+"detail_delete" = "Smazat";
+"detail_cancel" = "Zrušit";
+"detail_done" = "Hotovo";
+"detail_title_placeholder" = "Nadpis";
+"schedule_pin_title" = "Připnout později";
+"schedule_set" = "Nastavit";
+"schedule_clear" = "Odebrat";
+"schedule_cancel" = "Zrušit";
+
+/* Settings */
+"settings_title" = "Nastavení";
+"settings_sync_header" = "Měj své poznámky v bezpečí";
+"settings_appearance_header" = "Vzhled";
+"settings_pro_header" = "PinnedNote Pro";
+"settings_upgrade_header" = "Upgrade";
+"settings_upgrade_footer" = "Měsíční předplatné se automaticky obnovuje. Doživotní přístup je jednorázový nákup.";
+"settings_pro_active" = "PinnedNote Pro — aktivní";
+"settings_icloud_sync" = "iCloud synchronizace";
+"settings_days_remaining_singular" = "Ve zkušební verzi zbývá %d den";
+"settings_days_remaining_plural" = "Ve zkušební verzi zbývá %d dní";
+"settings_trial_ended" = "Zkušební verze skončila";
+"settings_restore" = "Obnovit nákup";
+"settings_feedback" = "Odeslat zpětnou vazbu";
+"settings_feedback_detail" = "Návrhy, nápady na vylepšení nebo hlášení chyb";
+"settings_version" = "Verze %@";
+"settings_monthly_title" = "Měsíční";
+"settings_price_loading" = "Načítám";
+"settings_monthly_subtitle" = "za měsíc";
+"settings_lifetime_title" = "Doživotní";
+"settings_lifetime_subtitle" = "jednorázový";
+"settings_purchase_failed" = "Nákup selhal";
+"settings_ok" = "OK";
+"settings_feedback_alert_title" = "Odeslat zpětnou vazbu";
+"settings_feedback_alert_message" = "Napište nám na:\n%@";
+"settings_copy_email" = "Kopírovat e-mail";
+"settings_pro_features" = "Během 14denní zkušební verze lze připínat poznámky na zamykací obrazovku, používat Připnout později a psát přímo z ní. Po skončení zkušební verze budou tyto funkce dostupné s PinnedNote Pro";
+"settings_privacy_policy" = "Zásady ochrany osobních údajů";
+"settings_terms_of_use" = "Podmínky použití";
+"purchase_error_products_unavailable" = "Produkty se nepodařilo načíst. Zkontroluj připojení a zkus to znovu.";
+"purchase_error_unverified" = "Nákup se nepodařilo ověřit. Zkus to prosím znovu.";
+"purchase_error_failed" = "Nákup selhal. Zkus to prosím znovu.";
+"purchase_error_restore_failed" = "Obnovení nákupu selhalo. Zkus to prosím znovu.";
+
+/* Storage */
+"storage_error_title" = "Problém s ukládáním poznámek";
+"storage_error_icloud_unavailable" = "Úložiště iCloud není dostupné. Zkontroluj, že je pro tuto aplikaci zapnutý iCloud Drive.";
