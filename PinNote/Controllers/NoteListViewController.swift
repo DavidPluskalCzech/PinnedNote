@@ -358,8 +358,11 @@ final class NoteListViewController: UIViewController {
             let note = NoteStore.shared.notes[indexPath.row]
             if animated {
                 cell.configure(with: note)
-                cell.applyEditMode(isInEditMode)
-                cell.applySelected(selectedIDs.contains(note.id))
+                cell.setSelectionState(
+                    editing: isInEditMode,
+                    selected: selectedIDs.contains(note.id),
+                    animated: true
+                )
             } else {
                 cell.configure(
                     with: note,

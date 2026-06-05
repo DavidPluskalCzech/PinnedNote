@@ -262,7 +262,9 @@ final class NoteCell: UITableViewCell {
         setSelectionState(editing: false, selected: false, animated: false)
     }
 
-    private func setSelectionState(editing: Bool, selected: Bool, animated: Bool) {
+    func setSelectionState(editing: Bool, selected: Bool, animated: Bool) {
+        let wasEditing = selectionEditing
+        let wasSelected = selectionSelected
         let oldLeading = textLeadingConstraint.constant
         let targetLeading: CGFloat = editing ? 44 : PN.padding
         let visualOffset = oldLeading - targetLeading
@@ -280,9 +282,7 @@ final class NoteCell: UITableViewCell {
         cardView.layer.removeAllAnimations()
 
         let block = {
-            self.selectionRing.alpha = editing ? 1 : 0
             self.selectionFill.alpha = editing && selected ? 1 : 0
-            self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
             self.selectionFill.transform = editing && selected ? .identity : CGAffineTransform(scaleX: 0.72, y: 0.72)
             self.titleLabel.transform = .identity
             self.bodyLabel.transform = .identity
@@ -302,9 +302,20 @@ final class NoteCell: UITableViewCell {
 
         if editing {
             selectionRing.isHidden = false
+            selectionRing.alpha = wasEditing ? selectionRing.alpha : 0
+            selectionRing.transform = wasEditing ? selectionRing.transform : CGAffineTransform(scaleX: 0.82, y: 0.82)
+        } else {
+            selectionRing.alpha = 0
+            selectionRing.transform = CGAffineTransform(scaleX: 0.82, y: 0.82)
+            selectionRing.isHidden = true
         }
+
         if editing && selected {
             selectionFill.isHidden = false
+            selectionFill.alpha = wasSelected ? selectionFill.alpha : 0
+            selectionFill.transform = wasSelected ? selectionFill.transform : CGAffineTransform(scaleX: 0.72, y: 0.72)
+        } else {
+            selectionFill.isHidden = true
         }
 
         UIView.performWithoutAnimation {
@@ -321,7 +332,11 @@ final class NoteCell: UITableViewCell {
             usingSpringWithDamping: 0.86,
             initialSpringVelocity: 0,
             options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: block
+            animations: {
+                self.selectionRing.alpha = editing ? 1 : 0
+                self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
+                block()
+            }
         ) { _ in
             guard self.selectionStateVersion == stateVersion else { return }
             self.selectionRing.isHidden = !self.selectionEditing
