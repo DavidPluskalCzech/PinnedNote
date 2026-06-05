@@ -265,6 +265,8 @@ final class NoteCell: UITableViewCell {
         selectionEditing = editing
         selectionSelected = editing && selected
 
+        contentView.layoutIfNeeded()
+        cardView.layoutIfNeeded()
         selectionRing.layer.removeAllAnimations()
         selectionFill.layer.removeAllAnimations()
         cardView.layer.removeAllAnimations()
@@ -275,6 +277,7 @@ final class NoteCell: UITableViewCell {
             self.selectionFill.alpha = editing && selected ? 1 : 0
             self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
             self.selectionFill.transform = editing && selected ? .identity : CGAffineTransform(scaleX: 0.72, y: 0.72)
+            self.contentView.layoutIfNeeded()
             self.cardView.layoutIfNeeded()
         }
 
