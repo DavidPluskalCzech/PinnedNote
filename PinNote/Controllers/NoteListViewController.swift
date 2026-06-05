@@ -331,9 +331,6 @@ final class NoteListViewController: UIViewController {
         // Do NOT use tableView.setEditing — that shows the system's native circles.
         // Drive edit-mode UI entirely through the cell's own selection state.
         syncVisibleSelectionCells(animated: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
-            self?.syncVisibleSelectionCells(animated: false)
-        }
         bottomBar.setEditMode(isInEditMode)
         bottomBar.setDeleteEnabled(false)
     }

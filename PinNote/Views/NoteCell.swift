@@ -34,6 +34,7 @@ final class NoteCell: UITableViewCell {
     private var textLeadingConstraint: NSLayoutConstraint!
     private var selectionEditing = false
     private var selectionSelected = false
+    private var selectionStateVersion = 0
 
     // MARK: - Init
 
@@ -262,6 +263,11 @@ final class NoteCell: UITableViewCell {
     }
 
     private func setSelectionState(editing: Bool, selected: Bool, animated: Bool) {
+        let oldLeading = textLeadingConstraint.constant
+        let targetLeading: CGFloat = editing ? 44 : PN.padding
+        let visualOffset = oldLeading - targetLeading
+        selectionStateVersion += 1
+        let stateVersion = selectionStateVersion
         selectionEditing = editing
         selectionSelected = editing && selected
 
@@ -269,20 +275,26 @@ final class NoteCell: UITableViewCell {
         cardView.layoutIfNeeded()
         selectionRing.layer.removeAllAnimations()
         selectionFill.layer.removeAllAnimations()
+        titleLabel.layer.removeAllAnimations()
+        bodyLabel.layer.removeAllAnimations()
         cardView.layer.removeAllAnimations()
 
         let block = {
-            self.textLeadingConstraint.constant = editing ? 44 : PN.padding
             self.selectionRing.alpha = editing ? 1 : 0
             self.selectionFill.alpha = editing && selected ? 1 : 0
             self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
             self.selectionFill.transform = editing && selected ? .identity : CGAffineTransform(scaleX: 0.72, y: 0.72)
-            self.contentView.layoutIfNeeded()
-            self.cardView.layoutIfNeeded()
+            self.titleLabel.transform = .identity
+            self.bodyLabel.transform = .identity
         }
 
         guard animated else {
-            UIView.performWithoutAnimation(block)
+            UIView.performWithoutAnimation {
+                self.textLeadingConstraint.constant = targetLeading
+                block()
+                self.contentView.layoutIfNeeded()
+                self.cardView.layoutIfNeeded()
+            }
             selectionRing.isHidden = !editing
             selectionFill.isHidden = !(editing && selected)
             return
@@ -295,6 +307,14 @@ final class NoteCell: UITableViewCell {
             selectionFill.isHidden = false
         }
 
+        UIView.performWithoutAnimation {
+            self.textLeadingConstraint.constant = targetLeading
+            self.contentView.layoutIfNeeded()
+            self.cardView.layoutIfNeeded()
+            self.titleLabel.transform = CGAffineTransform(translationX: visualOffset, y: 0)
+            self.bodyLabel.transform = CGAffineTransform(translationX: visualOffset, y: 0)
+        }
+
         UIView.animate(
             withDuration: 0.28,
             delay: 0,
@@ -303,8 +323,9 @@ final class NoteCell: UITableViewCell {
             options: [.beginFromCurrentState, .allowUserInteraction],
             animations: block
         ) { _ in
-            self.selectionRing.isHidden = !editing
-            self.selectionFill.isHidden = !(editing && selected)
+            guard self.selectionStateVersion == stateVersion else { return }
+            self.selectionRing.isHidden = !self.selectionEditing
+            self.selectionFill.isHidden = !(self.selectionEditing && self.selectionSelected)
         }
     }
 
