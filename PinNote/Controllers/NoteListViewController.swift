@@ -182,10 +182,10 @@ final class NoteListViewController: UIViewController {
 
     private func wireBottomBar() {
         bottomBar.onNewNote  = { [weak self] in self?.openNewNote() }
-        bottomBar.onEdit     = { [weak self] in self?.toggleEditMode() }
+        bottomBar.onEdit     = { [weak self] in self?.setListEditMode(true) }
         bottomBar.onSettings = { [weak self] in self?.openSettings() }
         bottomBar.onDelete   = { [weak self] in self?.deleteSelected() }
-        bottomBar.onCancel   = { [weak self] in self?.toggleEditMode() }
+        bottomBar.onCancel   = { [weak self] in self?.setListEditMode(false) }
     }
 
     // MARK: - Combine binding
@@ -211,7 +211,12 @@ final class NoteListViewController: UIViewController {
             tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
                 guard let ip = tableView.indexPath(for: cell),
                       ip.row < newNotes.count else { return }
-                cell.configure(with: newNotes[ip.row])
+                let note = newNotes[ip.row]
+                cell.configure(
+                    with: note,
+                    editing: isInEditMode,
+                    selected: selectedIDs.contains(note.id)
+                )
             }
             refreshEmptyState()
             return
@@ -309,9 +314,48 @@ final class NoteListViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
 
-    private func toggleEditMode() {
-        isInEditMode.toggle()
+    private func setListEditMode(_ editing: Bool) {
+        guard isInEditMode != editing else {
+            selectedIDs.removeAll()
+            resetDragSelectionState()
+            syncVisibleSelectionCells(animated: false)
+            bottomBar.setDeleteEnabled(false)
+            return
+        }
+
+        isInEditMode = editing
         selectedIDs.removeAll()
+        resetDragSelectionState()
+        tableView.setEditing(false, animated: false)
+        tableView.endEditing(true)
+        tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
+            guard let indexPath = tableView.indexPath(for: cell),
+                  indexPath.row < NoteStore.shared.notes.count else {
+                cell.resetSelectionIndicator()
+                return
+            }
+
+            cell.configure(
+                with: NoteStore.shared.notes[indexPath.row],
+                editing: isInEditMode,
+                selected: false
+            )
+        }
+        // Do NOT use tableView.setEditing — that shows the system's native circles.
+        // Drive edit-mode UI entirely through the cell's own selection state.
+        UIView.performWithoutAnimation {
+            tableView.reloadData()
+            tableView.layoutIfNeeded()
+        }
+        syncVisibleSelectionCells(animated: false)
+        DispatchQueue.main.async { [weak self] in
+            self?.syncVisibleSelectionCells(animated: false)
+        }
+        bottomBar.setEditMode(isInEditMode)
+        bottomBar.setDeleteEnabled(false)
+    }
+
+    private func resetDragSelectionState() {
         dragSelectPathIDs.removeAll()
         dragSelectInitialSelectedIDs.removeAll()
         dragSelectStartID = nil
@@ -319,15 +363,31 @@ final class NoteListViewController: UIViewController {
         dragSelectCanRestoreStart = false
         dragSelectStartRestored = false
         dragSelectIsRemoving = false
+        dragSelectCurrentLocation = nil
         stopDragSelectAutoScroll()
-        // Do NOT use tableView.setEditing — that shows the system's native circles.
-        // Drive edit-mode UI entirely through the cell's applyEditMode method.
-        let visibleRows = tableView.indexPathsForVisibleRows ?? []
-        UIView.performWithoutAnimation {
-            tableView.reloadRows(at: visibleRows, with: .none)
+    }
+
+    private func syncVisibleSelectionCells(animated: Bool) {
+        tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
+            guard let indexPath = tableView.indexPath(for: cell),
+                  indexPath.row < NoteStore.shared.notes.count else {
+                cell.resetSelectionIndicator()
+                return
+            }
+
+            let note = NoteStore.shared.notes[indexPath.row]
+            if animated {
+                cell.configure(with: note)
+                cell.applyEditMode(isInEditMode)
+                cell.applySelected(selectedIDs.contains(note.id))
+            } else {
+                cell.configure(
+                    with: note,
+                    editing: isInEditMode,
+                    selected: selectedIDs.contains(note.id)
+                )
+            }
         }
-        bottomBar.setEditMode(isInEditMode)
-        bottomBar.setDeleteEnabled(false)
     }
 
     private func deleteSelected() {
@@ -352,7 +412,7 @@ final class NoteListViewController: UIViewController {
                     }
 
                     NoteStore.shared.delete(ids: self.selectedIDs)
-                    self.toggleEditMode()
+                    self.setListEditMode(false)
                 }
             ]
         )
@@ -767,9 +827,7 @@ extension NoteListViewController: UITableViewDataSource {
         let cell = tableView.dequeueReusableCell(withIdentifier: NoteCell.reuseID, for: indexPath) as! NoteCell
         guard indexPath.row < NoteStore.shared.notes.count else { return cell }
         let note = NoteStore.shared.notes[indexPath.row]
-        cell.configure(with: note)
-        cell.applyEditMode(isInEditMode, animated: false)
-        cell.applySelected(selectedIDs.contains(note.id), animated: false)
+        cell.configure(with: note, editing: isInEditMode, selected: selectedIDs.contains(note.id))
         return cell
     }
 
@@ -868,7 +926,11 @@ extension NoteListViewController: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        true
+        if gestureRecognizer === dragSelectPanGesture || otherGestureRecognizer === dragSelectPanGesture {
+            return false
+        }
+
+        return true
     }
 }
 

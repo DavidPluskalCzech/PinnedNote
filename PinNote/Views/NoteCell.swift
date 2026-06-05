@@ -32,6 +32,8 @@ final class NoteCell: UITableViewCell {
 
     // Shifts text right when selection ring is visible
     private var textLeadingConstraint: NSLayoutConstraint!
+    private var selectionEditing = false
+    private var selectionSelected = false
 
     // MARK: - Init
 
@@ -210,6 +212,11 @@ final class NoteCell: UITableViewCell {
         resetQuickPinReveal(animated: false)
     }
 
+    func configure(with note: Note, editing: Bool, selected: Bool) {
+        configure(with: note)
+        setSelectionState(editing: editing, selected: selected, animated: false)
+    }
+
     func configure(with note: Note) {
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         titleLabel.font = hasExplicitTitle ? PN.font(18, bold: true) : PN.font(14, bold: true)
@@ -243,49 +250,45 @@ final class NoteCell: UITableViewCell {
     // MARK: - Edit mode
 
     func applyEditMode(_ editing: Bool, animated: Bool = true) {
+        setSelectionState(editing: editing, selected: editing && selectionSelected, animated: animated)
+    }
+
+    func applySelected(_ selected: Bool, animated: Bool = true) {
+        setSelectionState(editing: selectionEditing, selected: selected, animated: animated)
+    }
+
+    func resetSelectionIndicator() {
+        setSelectionState(editing: false, selected: false, animated: false)
+    }
+
+    private func setSelectionState(editing: Bool, selected: Bool, animated: Bool) {
+        selectionEditing = editing
+        selectionSelected = editing && selected
+
         selectionRing.layer.removeAllAnimations()
         selectionFill.layer.removeAllAnimations()
         cardView.layer.removeAllAnimations()
 
-        guard animated else {
-            setEditMode(editing)
-            return
-        }
-
-        textLeadingConstraint.constant = editing ? 44 : PN.padding
         let block = {
-            self.setEditMode(editing)
+            self.textLeadingConstraint.constant = editing ? 44 : PN.padding
+            self.selectionRing.isHidden = !editing
+            self.selectionRing.alpha = editing ? 1 : 0
+            self.selectionFill.isHidden = !(editing && selected)
+            self.selectionFill.alpha = editing && selected ? 1 : 0
             self.cardView.layoutIfNeeded()
         }
-        if animated {
-            UIView.animate(withDuration: 0.22, delay: 0,
-                           usingSpringWithDamping: 0.85, initialSpringVelocity: 0, animations: block)
-        }
-    }
 
-    func applySelected(_ selected: Bool, animated: Bool = true) {
-        selectionFill.layer.removeAllAnimations()
-        let block = {
-            self.selectionFill.alpha = selected ? 1 : 0
-        }
         guard animated else {
-            block()
+            UIView.performWithoutAnimation(block)
             return
         }
-        UIView.animate(withDuration: 0.15, animations: block)
-    }
 
-    func resetSelectionIndicator() {
-        selectionRing.layer.removeAllAnimations()
-        selectionFill.layer.removeAllAnimations()
-        setEditMode(false)
-    }
-
-    private func setEditMode(_ editing: Bool) {
-        textLeadingConstraint.constant = editing ? 44 : PN.padding
-        selectionRing.alpha = editing ? 1 : 0
-        selectionFill.alpha = 0
-        cardView.layoutIfNeeded()
+        UIView.animate(
+            withDuration: 0.18,
+            delay: 0,
+            options: [.beginFromCurrentState, .allowUserInteraction],
+            animations: block
+        )
     }
 
     // MARK: - Quick pin reveal
