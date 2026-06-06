@@ -421,7 +421,6 @@ final class NoteListViewController: UIViewController {
             dragSelectInitialSelectedIDs = selectedIDs
             tableView.isScrollEnabled = false
             let location = gesture.location(in: tableView)
-            dragSelectStartLocation = location
             dragSelectLastGestureY = gesture.location(in: view).y
             dragSelectIsRemoving = isNoteSelectedUnderDrag(at: location)
             dragSelectCurrentLocation = location
@@ -473,6 +472,7 @@ final class NoteListViewController: UIViewController {
         let note = notes[indexPath.row]
         if dragSelectStartID == nil {
             dragSelectStartID = note.id
+            dragSelectStartLocation = dragSelectionStartLocation(for: indexPath, fallback: location)
         }
 
         guard let startID = dragSelectStartID,
@@ -507,6 +507,14 @@ final class NoteListViewController: UIViewController {
         dragSelectCanRestoreStart = dragSelectRowDirection != nil
         dragSelectStartRestored = rangeIDs.isEmpty
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
+    }
+
+    private func dragSelectionStartLocation(for indexPath: IndexPath, fallback location: CGPoint) -> CGPoint {
+        let rect = tableView.rectForRow(at: indexPath)
+        guard !rect.contains(location) else { return location }
+
+        let anchoredY = min(max(location.y, rect.minY), rect.maxY)
+        return CGPoint(x: location.x, y: anchoredY)
     }
 
     private func indexPathForDragSelection(at location: CGPoint) -> IndexPath? {
