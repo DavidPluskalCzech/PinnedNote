@@ -31,6 +31,7 @@ final class NoteListViewController: UIViewController {
     private var dragSelectStartLocation: CGPoint?
     private var dragSelectCanRestoreStart = false
     private var dragSelectStartRestored = false
+    private var dragSelectRowDirection: Int?
     private var dragSelectCurrentLocation: CGPoint?
     private var dragSelectDisplayLink: CADisplayLink?
     private var dragSelectIsRemoving = false
@@ -342,6 +343,7 @@ final class NoteListViewController: UIViewController {
         dragSelectStartLocation = nil
         dragSelectCanRestoreStart = false
         dragSelectStartRestored = false
+        dragSelectRowDirection = nil
         dragSelectIsRemoving = false
         dragSelectCurrentLocation = nil
         stopDragSelectAutoScroll()
@@ -432,6 +434,7 @@ final class NoteListViewController: UIViewController {
             dragSelectStartLocation = nil
             dragSelectCanRestoreStart = false
             dragSelectStartRestored = false
+            dragSelectRowDirection = nil
             dragSelectIsRemoving = false
             dragSelectCurrentLocation = nil
             tableView.isScrollEnabled = true
@@ -512,6 +515,7 @@ final class NoteListViewController: UIViewController {
         if dragSelectStartID == nil {
             dragSelectStartID = note.id
         } else {
+            updateDragSelectionDirectionIfNeeded(currentRow: indexPath.row)
             dragSelectCanRestoreStart = true
             dragSelectStartRestored = false
         }
@@ -556,15 +560,33 @@ final class NoteListViewController: UIViewController {
         guard dragSelectCanRestoreStart,
               dragSelectPathIDs.count == 1,
               noteID == dragSelectStartID,
-              let startLocation = dragSelectStartLocation
+              let startLocation = dragSelectStartLocation,
+              let direction = dragSelectRowDirection
         else { return false }
 
-        return location.y <= startLocation.y + 8
+        return direction > 0
+            ? location.y <= startLocation.y + 8
+            : location.y >= startLocation.y - 8
     }
 
     private func shouldKeepRestoredStartSuppressed(at location: CGPoint) -> Bool {
-        guard let startLocation = dragSelectStartLocation else { return false }
-        return location.y <= startLocation.y + 8
+        guard let startLocation = dragSelectStartLocation,
+              let direction = dragSelectRowDirection
+        else { return false }
+
+        return direction > 0
+            ? location.y <= startLocation.y + 8
+            : location.y >= startLocation.y - 8
+    }
+
+    private func updateDragSelectionDirectionIfNeeded(currentRow: Int) {
+        guard dragSelectRowDirection == nil,
+              let startID = dragSelectStartID,
+              let startRow = NoteStore.shared.notes.firstIndex(where: { $0.id == startID }),
+              startRow != currentRow
+        else { return }
+
+        dragSelectRowDirection = startRow < currentRow ? 1 : -1
     }
 
     private func restoreDragSelection(for noteID: UUID) {
