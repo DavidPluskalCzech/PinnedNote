@@ -32,6 +32,8 @@ final class NoteListViewController: UIViewController {
     private var dragSelectCanRestoreStart = false
     private var dragSelectStartRestored = false
     private var dragSelectRowDirection: Int?
+    private var dragSelectFingerDirection: Int?
+    private var dragSelectLastGestureY: CGFloat?
     private var dragSelectCurrentLocation: CGPoint?
     private var dragSelectDisplayLink: CADisplayLink?
     private var dragSelectIsRemoving = false
@@ -344,6 +346,8 @@ final class NoteListViewController: UIViewController {
         dragSelectCanRestoreStart = false
         dragSelectStartRestored = false
         dragSelectRowDirection = nil
+        dragSelectFingerDirection = nil
+        dragSelectLastGestureY = nil
         dragSelectIsRemoving = false
         dragSelectCurrentLocation = nil
         stopDragSelectAutoScroll()
@@ -417,12 +421,14 @@ final class NoteListViewController: UIViewController {
             tableView.isScrollEnabled = false
             let location = gesture.location(in: tableView)
             dragSelectStartLocation = location
+            dragSelectLastGestureY = gesture.location(in: view).y
             dragSelectIsRemoving = isNoteSelectedUnderDrag(at: location)
             dragSelectCurrentLocation = location
             selectNotesUnderDrag(at: location)
             startDragSelectAutoScroll()
 
         case .changed:
+            updateDragFingerDirection(with: gesture.location(in: view).y)
             let location = gesture.location(in: tableView)
             dragSelectCurrentLocation = location
             selectNotesUnderDrag(at: location)
@@ -435,6 +441,8 @@ final class NoteListViewController: UIViewController {
             dragSelectCanRestoreStart = false
             dragSelectStartRestored = false
             dragSelectRowDirection = nil
+            dragSelectFingerDirection = nil
+            dragSelectLastGestureY = nil
             dragSelectIsRemoving = false
             dragSelectCurrentLocation = nil
             tableView.isScrollEnabled = true
@@ -460,73 +468,43 @@ final class NoteListViewController: UIViewController {
               indexPath.row < NoteStore.shared.notes.count
         else { return }
 
-        if let lastID = dragSelectPathIDs.last,
-           let lastRow = NoteStore.shared.notes.firstIndex(where: { $0.id == lastID }),
-           lastRow != indexPath.row,
-           dragSelectPathIDs.contains(NoteStore.shared.notes[indexPath.row].id) == false {
-            let step = lastRow < indexPath.row ? 1 : -1
-            var row = lastRow + step
-            while row != indexPath.row {
-                applyDragSelection(to: IndexPath(row: row, section: indexPath.section), at: location)
-                row += step
-            }
-        }
-
-        applyDragSelection(to: indexPath, at: location)
-    }
-
-    private func applyDragSelection(to indexPath: IndexPath, at location: CGPoint) {
-        guard isInEditMode,
-              indexPath.row < NoteStore.shared.notes.count
-        else { return }
-
-        let note = NoteStore.shared.notes[indexPath.row]
-        if dragSelectPathIDs.isEmpty,
-           dragSelectStartRestored,
-           note.id == dragSelectStartID,
-           shouldKeepRestoredStartSuppressed(at: location) {
-            return
-        }
-
-        if let existingIndex = dragSelectPathIDs.firstIndex(of: note.id) {
-            let removedIDs = Array(dragSelectPathIDs.suffix(from: existingIndex + 1))
-            if removedIDs.isEmpty {
-                if shouldRestoreDragStart(at: location, noteID: note.id) {
-                    dragSelectPathIDs.removeAll()
-                    dragSelectStartRestored = true
-                    restoreDragSelection(for: note.id)
-                    bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
-                }
-                return
-            }
-
-            dragSelectPathIDs.removeLast(removedIDs.count)
-            removedIDs.forEach { restoreDragSelection(for: $0) }
-            if shouldRestoreDragStart(at: location, noteID: note.id) {
-                dragSelectPathIDs.removeAll()
-                dragSelectStartRestored = true
-                restoreDragSelection(for: note.id)
-            }
-            bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
-            return
-        }
-
-        dragSelectPathIDs.append(note.id)
+        let notes = NoteStore.shared.notes
+        let note = notes[indexPath.row]
         if dragSelectStartID == nil {
             dragSelectStartID = note.id
-        } else {
-            updateDragSelectionDirectionIfNeeded(currentRow: indexPath.row)
-            dragSelectCanRestoreStart = true
-            dragSelectStartRestored = false
         }
 
-        if dragSelectIsRemoving {
-            selectedIDs.remove(note.id)
+        guard let startID = dragSelectStartID,
+              let startRow = notes.firstIndex(where: { $0.id == startID })
+        else { return }
+
+        updateDragSelectionDirectionIfNeeded(currentRow: indexPath.row)
+
+        let previousIDs = Set(dragSelectPathIDs)
+        let rangeIDs: [UUID]
+        if shouldRestoreDragStart(at: location, noteID: startID) {
+            rangeIDs = []
         } else {
-            selectedIDs.insert(note.id)
+            let lowerRow = min(startRow, indexPath.row)
+            let upperRow = max(startRow, indexPath.row)
+            rangeIDs = notes[lowerRow...upperRow].map(\.id)
         }
 
-        refreshDragSelectionCell(noteID: note.id)
+        let currentIDs = Set(rangeIDs)
+        previousIDs.subtracting(currentIDs).forEach { restoreDragSelection(for: $0) }
+
+        currentIDs.forEach { noteID in
+            if dragSelectIsRemoving {
+                selectedIDs.remove(noteID)
+            } else {
+                selectedIDs.insert(noteID)
+            }
+            refreshDragSelectionCell(noteID: noteID)
+        }
+
+        dragSelectPathIDs = rangeIDs
+        dragSelectCanRestoreStart = dragSelectRowDirection != nil
+        dragSelectStartRestored = rangeIDs.isEmpty
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
     }
 
@@ -569,16 +547,6 @@ final class NoteListViewController: UIViewController {
             : location.y >= startLocation.y - 8
     }
 
-    private func shouldKeepRestoredStartSuppressed(at location: CGPoint) -> Bool {
-        guard let startLocation = dragSelectStartLocation,
-              let direction = dragSelectRowDirection
-        else { return false }
-
-        return direction > 0
-            ? location.y <= startLocation.y + 8
-            : location.y >= startLocation.y - 8
-    }
-
     private func updateDragSelectionDirectionIfNeeded(currentRow: Int) {
         guard dragSelectRowDirection == nil,
               let startID = dragSelectStartID,
@@ -587,6 +555,19 @@ final class NoteListViewController: UIViewController {
         else { return }
 
         dragSelectRowDirection = startRow < currentRow ? 1 : -1
+    }
+
+    private func updateDragFingerDirection(with gestureY: CGFloat) {
+        guard let lastGestureY = dragSelectLastGestureY else {
+            dragSelectLastGestureY = gestureY
+            return
+        }
+
+        let delta = gestureY - lastGestureY
+        if abs(delta) > 1 {
+            dragSelectFingerDirection = delta > 0 ? 1 : -1
+            dragSelectLastGestureY = gestureY
+        }
     }
 
     private func restoreDragSelection(for noteID: UUID) {
@@ -633,9 +614,9 @@ final class NoteListViewController: UIViewController {
         let bottomZone = tableView.bounds.height - tableView.adjustedContentInset.bottom - dragSelectAutoScrollZoneHeight
 
         var delta: CGFloat = 0
-        if visibleY < topZone {
+        if visibleY < topZone, dragSelectFingerDirection == -1 {
             delta = -dragSelectMaxAutoScrollSpeed * ((topZone - visibleY) / dragSelectAutoScrollZoneHeight)
-        } else if visibleY > bottomZone {
+        } else if visibleY > bottomZone, dragSelectFingerDirection == 1 {
             delta = dragSelectMaxAutoScrollSpeed * ((visibleY - bottomZone) / dragSelectAutoScrollZoneHeight)
         }
 
@@ -650,7 +631,6 @@ final class NoteListViewController: UIViewController {
         let newOffsetY = min(max(oldOffsetY + delta, minOffsetY), maxOffsetY)
         let appliedDelta = newOffsetY - oldOffsetY
         guard appliedDelta != 0 else {
-            selectNotesUnderDrag(at: location)
             return
         }
 
