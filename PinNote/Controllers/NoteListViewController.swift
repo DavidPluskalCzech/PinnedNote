@@ -443,7 +443,7 @@ final class NoteListViewController: UIViewController {
     }
 
     private func isNoteSelectedUnderDrag(at location: CGPoint) -> Bool {
-        guard let indexPath = tableView.indexPathForRow(at: location),
+        guard let indexPath = indexPathForDragSelection(at: location),
               indexPath.row < NoteStore.shared.notes.count
         else { return false }
 
@@ -453,7 +453,7 @@ final class NoteListViewController: UIViewController {
 
     private func selectNoteUnderDrag(at location: CGPoint) {
         guard isInEditMode,
-              let indexPath = tableView.indexPathForRow(at: location),
+              let indexPath = indexPathForDragSelection(at: location),
               indexPath.row < NoteStore.shared.notes.count
         else { return }
 
@@ -504,6 +504,32 @@ final class NoteListViewController: UIViewController {
 
         refreshDragSelectionCell(noteID: note.id)
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
+    }
+
+    private func indexPathForDragSelection(at location: CGPoint) -> IndexPath? {
+        if let indexPath = tableView.indexPathForRow(at: location),
+           indexPath.row < NoteStore.shared.notes.count {
+            return indexPath
+        }
+
+        guard location.x <= dragSelectRailWidth,
+              !NoteStore.shared.notes.isEmpty
+        else { return nil }
+
+        let visible = (tableView.indexPathsForVisibleRows ?? [])
+            .filter { $0.section == 0 && $0.row < NoteStore.shared.notes.count }
+            .sorted { $0.row < $1.row }
+        guard let first = visible.first, let last = visible.last else { return nil }
+
+        let firstRect = tableView.rectForRow(at: first)
+        let lastRect = tableView.rectForRow(at: last)
+        if location.y <= firstRect.minY { return first }
+        if location.y >= lastRect.maxY { return last }
+
+        return visible.min { lhs, rhs in
+            abs(tableView.rectForRow(at: lhs).midY - location.y) <
+            abs(tableView.rectForRow(at: rhs).midY - location.y)
+        }
     }
 
     private func shouldRestoreDragStart(at location: CGPoint, noteID: UUID) -> Bool {
@@ -578,11 +604,16 @@ final class NoteListViewController: UIViewController {
             minOffsetY,
             tableView.contentSize.height - tableView.bounds.height + tableView.adjustedContentInset.bottom
         )
-        let newOffsetY = min(max(tableView.contentOffset.y + delta, minOffsetY), maxOffsetY)
-        guard newOffsetY != tableView.contentOffset.y else { return }
+        let oldOffsetY = tableView.contentOffset.y
+        let newOffsetY = min(max(oldOffsetY + delta, minOffsetY), maxOffsetY)
+        let appliedDelta = newOffsetY - oldOffsetY
+        guard appliedDelta != 0 else {
+            selectNoteUnderDrag(at: location)
+            return
+        }
 
         tableView.contentOffset.y = newOffsetY
-        let adjustedLocation = CGPoint(x: location.x, y: location.y + delta)
+        let adjustedLocation = CGPoint(x: location.x, y: location.y + appliedDelta)
         dragSelectCurrentLocation = adjustedLocation
         selectNoteUnderDrag(at: adjustedLocation)
     }
