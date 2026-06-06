@@ -417,13 +417,13 @@ final class NoteListViewController: UIViewController {
             dragSelectStartLocation = location
             dragSelectIsRemoving = isNoteSelectedUnderDrag(at: location)
             dragSelectCurrentLocation = location
-            selectNoteUnderDrag(at: location)
+            selectNotesUnderDrag(at: location)
             startDragSelectAutoScroll()
 
         case .changed:
             let location = gesture.location(in: tableView)
             dragSelectCurrentLocation = location
-            selectNoteUnderDrag(at: location)
+            selectNotesUnderDrag(at: location)
 
         case .ended, .cancelled, .failed:
             dragSelectPathIDs.removeAll()
@@ -451,9 +451,29 @@ final class NoteListViewController: UIViewController {
         return selectedIDs.contains(note.id)
     }
 
-    private func selectNoteUnderDrag(at location: CGPoint) {
+    private func selectNotesUnderDrag(at location: CGPoint) {
         guard isInEditMode,
               let indexPath = indexPathForDragSelection(at: location),
+              indexPath.row < NoteStore.shared.notes.count
+        else { return }
+
+        if let lastID = dragSelectPathIDs.last,
+           let lastRow = NoteStore.shared.notes.firstIndex(where: { $0.id == lastID }),
+           lastRow != indexPath.row,
+           dragSelectPathIDs.contains(NoteStore.shared.notes[indexPath.row].id) == false {
+            let step = lastRow < indexPath.row ? 1 : -1
+            var row = lastRow + step
+            while row != indexPath.row {
+                applyDragSelection(to: IndexPath(row: row, section: indexPath.section), at: location)
+                row += step
+            }
+        }
+
+        applyDragSelection(to: indexPath, at: location)
+    }
+
+    private func applyDragSelection(to indexPath: IndexPath, at location: CGPoint) {
+        guard isInEditMode,
               indexPath.row < NoteStore.shared.notes.count
         else { return }
 
@@ -608,14 +628,14 @@ final class NoteListViewController: UIViewController {
         let newOffsetY = min(max(oldOffsetY + delta, minOffsetY), maxOffsetY)
         let appliedDelta = newOffsetY - oldOffsetY
         guard appliedDelta != 0 else {
-            selectNoteUnderDrag(at: location)
+            selectNotesUnderDrag(at: location)
             return
         }
 
         tableView.contentOffset.y = newOffsetY
         let adjustedLocation = CGPoint(x: location.x, y: location.y + appliedDelta)
         dragSelectCurrentLocation = adjustedLocation
-        selectNoteUnderDrag(at: adjustedLocation)
+        selectNotesUnderDrag(at: adjustedLocation)
     }
 
     @objc private func handleQuickPinPan(_ gesture: UIPanGestureRecognizer) {
