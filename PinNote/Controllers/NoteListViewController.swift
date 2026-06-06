@@ -34,7 +34,7 @@ final class NoteListViewController: UIViewController {
     private var dragSelectRowDirection: Int?
     private var dragSelectFingerDirection: Int?
     private var dragSelectLastGestureY: CGFloat?
-    private var dragSelectCurrentLocation: CGPoint?
+    private var dragSelectCurrentViewLocation: CGPoint?
     private var dragSelectDisplayLink: CADisplayLink?
     private var dragSelectIsRemoving = false
     private var selectedIDs  = Set<UUID>()
@@ -350,7 +350,7 @@ final class NoteListViewController: UIViewController {
         dragSelectFingerDirection = nil
         dragSelectLastGestureY = nil
         dragSelectIsRemoving = false
-        dragSelectCurrentLocation = nil
+        dragSelectCurrentViewLocation = nil
         stopDragSelectAutoScroll()
     }
 
@@ -420,18 +420,18 @@ final class NoteListViewController: UIViewController {
             dragSelectPathIDs.removeAll()
             dragSelectInitialSelectedIDs = selectedIDs
             tableView.isScrollEnabled = false
-            let location = gesture.location(in: tableView)
-            dragSelectLastGestureY = gesture.location(in: view).y
-            dragSelectIsRemoving = isNoteSelectedUnderDrag(at: location)
-            dragSelectCurrentLocation = location
-            selectNotesUnderDrag(at: location)
+            let viewLocation = gesture.location(in: view)
+            dragSelectLastGestureY = viewLocation.y
+            dragSelectIsRemoving = isNoteSelectedUnderDrag(at: viewLocation)
+            dragSelectCurrentViewLocation = viewLocation
+            selectNotesUnderDrag(at: viewLocation)
             startDragSelectAutoScroll()
 
         case .changed:
-            updateDragFingerDirection(with: gesture.location(in: view).y)
-            let location = gesture.location(in: tableView)
-            dragSelectCurrentLocation = location
-            selectNotesUnderDrag(at: location)
+            let viewLocation = gesture.location(in: view)
+            updateDragFingerDirection(with: viewLocation.y)
+            dragSelectCurrentViewLocation = viewLocation
+            selectNotesUnderDrag(at: viewLocation)
 
         case .ended, .cancelled, .failed:
             dragSelectPathIDs.removeAll()
@@ -444,7 +444,7 @@ final class NoteListViewController: UIViewController {
             dragSelectFingerDirection = nil
             dragSelectLastGestureY = nil
             dragSelectIsRemoving = false
-            dragSelectCurrentLocation = nil
+            dragSelectCurrentViewLocation = nil
             tableView.isScrollEnabled = true
             stopDragSelectAutoScroll()
 
@@ -453,8 +453,8 @@ final class NoteListViewController: UIViewController {
         }
     }
 
-    private func isNoteSelectedUnderDrag(at location: CGPoint) -> Bool {
-        guard let indexPath = indexPathForDragSelection(at: location),
+    private func isNoteSelectedUnderDrag(at viewLocation: CGPoint) -> Bool {
+        guard let indexPath = indexPathForDragSelection(at: viewLocation),
               indexPath.row < NoteStore.shared.notes.count
         else { return false }
 
@@ -462,9 +462,9 @@ final class NoteListViewController: UIViewController {
         return selectedIDs.contains(note.id)
     }
 
-    private func selectNotesUnderDrag(at location: CGPoint) {
+    private func selectNotesUnderDrag(at viewLocation: CGPoint) {
         guard isInEditMode,
-              let indexPath = indexPathForDragSelection(at: location),
+              let indexPath = indexPathForDragSelection(at: viewLocation),
               indexPath.row < NoteStore.shared.notes.count
         else { return }
 
@@ -472,7 +472,7 @@ final class NoteListViewController: UIViewController {
         let note = notes[indexPath.row]
         if dragSelectStartID == nil {
             dragSelectStartID = note.id
-            dragSelectStartLocation = dragSelectionStartLocation(for: indexPath, fallback: location)
+            dragSelectStartLocation = dragSelectionStartLocation(for: indexPath, fallback: viewLocation)
         }
 
         guard let startID = dragSelectStartID,
@@ -483,7 +483,7 @@ final class NoteListViewController: UIViewController {
 
         let previousIDs = Set(dragSelectPathIDs)
         let rangeIDs: [UUID]
-        if shouldRestoreDragStart(at: location, noteID: startID) {
+        if shouldRestoreDragStart(at: viewLocation, noteID: startID) {
             rangeIDs = []
         } else {
             let lowerRow = min(startRow, indexPath.row)
@@ -509,21 +509,17 @@ final class NoteListViewController: UIViewController {
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
     }
 
-    private func dragSelectionStartLocation(for indexPath: IndexPath, fallback location: CGPoint) -> CGPoint {
-        let rect = tableView.rectForRow(at: indexPath)
-        guard !rect.contains(location) else { return location }
+    private func dragSelectionStartLocation(for indexPath: IndexPath, fallback viewLocation: CGPoint) -> CGPoint {
+        let rect = viewRectForRow(at: indexPath)
+        guard !rect.contains(viewLocation) else { return viewLocation }
 
-        let anchoredY = min(max(location.y, rect.minY), rect.maxY)
-        return CGPoint(x: location.x, y: anchoredY)
+        let anchoredY = min(max(viewLocation.y, rect.minY), rect.maxY)
+        return CGPoint(x: viewLocation.x, y: anchoredY)
     }
 
-    private func indexPathForDragSelection(at location: CGPoint) -> IndexPath? {
-        if let indexPath = tableView.indexPathForRow(at: location),
-           indexPath.row < NoteStore.shared.notes.count {
-            return indexPath
-        }
-
-        guard location.x <= dragSelectRailWidth,
+    private func indexPathForDragSelection(at viewLocation: CGPoint) -> IndexPath? {
+        let tableViewLocation = view.convert(viewLocation, to: tableView)
+        guard tableViewLocation.x <= dragSelectRailWidth,
               !NoteStore.shared.notes.isEmpty
         else { return nil }
 
@@ -532,15 +528,25 @@ final class NoteListViewController: UIViewController {
             .sorted { $0.row < $1.row }
         guard let first = visible.first, let last = visible.last else { return nil }
 
-        let firstRect = tableView.rectForRow(at: first)
-        let lastRect = tableView.rectForRow(at: last)
-        if location.y <= firstRect.minY { return first }
-        if location.y >= lastRect.maxY { return last }
+        for indexPath in visible {
+            if viewRectForRow(at: indexPath).contains(viewLocation) {
+                return indexPath
+            }
+        }
+
+        let firstRect = viewRectForRow(at: first)
+        let lastRect = viewRectForRow(at: last)
+        if viewLocation.y <= firstRect.minY { return first }
+        if viewLocation.y >= lastRect.maxY { return last }
 
         return visible.min { lhs, rhs in
-            abs(tableView.rectForRow(at: lhs).midY - location.y) <
-            abs(tableView.rectForRow(at: rhs).midY - location.y)
+            abs(viewRectForRow(at: lhs).midY - viewLocation.y) <
+            abs(viewRectForRow(at: rhs).midY - viewLocation.y)
         }
+    }
+
+    private func viewRectForRow(at indexPath: IndexPath) -> CGRect {
+        tableView.convert(tableView.rectForRow(at: indexPath), to: view)
     }
 
     private func shouldRestoreDragStart(at location: CGPoint, noteID: UUID) -> Bool {
@@ -612,21 +618,21 @@ final class NoteListViewController: UIViewController {
 
     @objc private func handleDragSelectAutoScroll() {
         guard isInEditMode,
-              let location = dragSelectCurrentLocation
+              let viewLocation = dragSelectCurrentViewLocation
         else {
             stopDragSelectAutoScroll()
             return
         }
 
-        let visibleY = location.y - tableView.contentOffset.y
-        let topZone = tableView.adjustedContentInset.top + dragSelectAutoScrollZoneHeight
-        let bottomZone = tableView.bounds.height - tableView.adjustedContentInset.bottom - dragSelectAutoScrollZoneHeight
+        let tableFrame = tableView.frame
+        let topZone = tableFrame.minY + tableView.adjustedContentInset.top + dragSelectAutoScrollZoneHeight
+        let bottomZone = tableFrame.maxY - tableView.adjustedContentInset.bottom - dragSelectAutoScrollZoneHeight
 
         var delta: CGFloat = 0
-        if visibleY < topZone, dragSelectFingerDirection == -1 {
-            delta = -dragSelectMaxAutoScrollSpeed * ((topZone - visibleY) / dragSelectAutoScrollZoneHeight)
-        } else if visibleY > bottomZone, dragSelectFingerDirection == 1 {
-            delta = dragSelectMaxAutoScrollSpeed * ((visibleY - bottomZone) / dragSelectAutoScrollZoneHeight)
+        if viewLocation.y < topZone, dragSelectFingerDirection == -1 {
+            delta = -dragSelectMaxAutoScrollSpeed * ((topZone - viewLocation.y) / dragSelectAutoScrollZoneHeight)
+        } else if viewLocation.y > bottomZone, dragSelectFingerDirection == 1 {
+            delta = dragSelectMaxAutoScrollSpeed * ((viewLocation.y - bottomZone) / dragSelectAutoScrollZoneHeight)
         }
 
         guard delta != 0 else { return }
@@ -644,9 +650,7 @@ final class NoteListViewController: UIViewController {
         }
 
         tableView.contentOffset.y = newOffsetY
-        let adjustedLocation = CGPoint(x: location.x, y: location.y + appliedDelta)
-        dragSelectCurrentLocation = adjustedLocation
-        selectNotesUnderDrag(at: adjustedLocation)
+        selectNotesUnderDrag(at: viewLocation)
     }
 
     @objc private func handleQuickPinPan(_ gesture: UIPanGestureRecognizer) {
