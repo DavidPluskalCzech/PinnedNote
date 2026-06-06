@@ -330,7 +330,7 @@ final class NoteListViewController: UIViewController {
         tableView.endEditing(true)
         // Do NOT use tableView.setEditing — that shows the system's native circles.
         // Drive edit-mode UI entirely through the cell's own selection state.
-        syncVisibleSelectionCells(animated: true)
+        syncVisibleSelectionCells(animated: editing)
         bottomBar.setEditMode(isInEditMode)
         bottomBar.setDeleteEnabled(false)
     }
@@ -348,13 +348,8 @@ final class NoteListViewController: UIViewController {
     }
 
     private func syncVisibleSelectionCells(animated: Bool) {
-        tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
-            guard let indexPath = tableView.indexPath(for: cell),
-                  indexPath.row < NoteStore.shared.notes.count else {
-                cell.resetSelectionIndicator()
-                return
-            }
-
+        visibleSelectionIndexPaths().forEach { indexPath in
+            guard let cell = tableView.cellForRow(at: indexPath) as? NoteCell else { return }
             let note = NoteStore.shared.notes[indexPath.row]
             if animated {
                 cell.configure(with: note)
@@ -371,6 +366,17 @@ final class NoteListViewController: UIViewController {
                 )
             }
         }
+    }
+
+    private func visibleSelectionIndexPaths() -> [IndexPath] {
+        let expandedBounds = tableView.bounds.insetBy(dx: 0, dy: -120)
+        let visible = tableView.indexPathsForVisibleRows ?? []
+        let nearVisible = tableView.indexPathsForRows(in: expandedBounds) ?? []
+        let rowCount = NoteStore.shared.notes.count
+        let unique = Set(visible + nearVisible)
+        return unique
+            .filter { $0.section == 0 && $0.row >= 0 && $0.row < rowCount }
+            .sorted { $0.row < $1.row }
     }
 
     private func deleteSelected() {
