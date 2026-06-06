@@ -50,7 +50,7 @@ final class NoteListViewController: UIViewController {
     }()
     private lazy var dragSelectPanGesture: UIPanGestureRecognizer = {
         let gesture = UIPanGestureRecognizer(target: self, action: #selector(handleDragSelectPan(_:)))
-        gesture.cancelsTouchesInView = false
+        gesture.cancelsTouchesInView = true
         gesture.delegate = self
         return gesture
     }()
@@ -119,6 +119,7 @@ final class NoteListViewController: UIViewController {
 
         tableView.addGestureRecognizer(quickPinPanGesture)
         tableView.addGestureRecognizer(dragSelectPanGesture)
+        tableView.panGestureRecognizer.require(toFail: dragSelectPanGesture)
 
         // Softens the handoff from the solid title area into scrolling notes.
         headerFadeView.isUserInteractionEnabled = false
