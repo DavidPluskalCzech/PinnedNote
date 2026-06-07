@@ -167,6 +167,7 @@ final class NoteListViewController: UIViewController {
         bottomBar.onSettings = { [weak self] in self?.openSettings() }
         bottomBar.onDelete   = { [weak self] in self?.deleteSelected() }
         bottomBar.onCancel   = { [weak self] in self?.setListEditMode(false) }
+        bottomBar.onSelectAll = { [weak self] in self?.toggleSelectAll() }
     }
 
     // MARK: - Combine binding
@@ -186,6 +187,8 @@ final class NoteListViewController: UIViewController {
     private func applyDiff(_ newNotes: [Note]) {
         let oldIDs = displayedIDs
         let newIDs = newNotes.map { $0.id }
+        selectedIDs = selectedIDs.intersection(Set(newIDs))
+        refreshSelectionControls()
 
         guard oldIDs != newIDs else {
             // Same order/count — just reload visible cells to refresh content (e.g. date)
@@ -200,6 +203,7 @@ final class NoteListViewController: UIViewController {
                 )
             }
             refreshEmptyState()
+            refreshSelectionControls()
             return
         }
 
@@ -220,6 +224,7 @@ final class NoteListViewController: UIViewController {
                 }
             } completion: { _ in
                 self.refreshEmptyState()
+                self.refreshSelectionControls()
             }
             return
         }
@@ -229,6 +234,7 @@ final class NoteListViewController: UIViewController {
 
         tableView.reloadData()
         refreshEmptyState()
+        refreshSelectionControls()
     }
 
     // MARK: - Lock-screen intent notification
@@ -299,7 +305,7 @@ final class NoteListViewController: UIViewController {
         guard isInEditMode != editing else {
             selectedIDs.removeAll()
             syncVisibleSelectionCells(animated: false)
-            bottomBar.setDeleteEnabled(false)
+            refreshSelectionControls()
             return
         }
 
@@ -313,7 +319,7 @@ final class NoteListViewController: UIViewController {
         tableView.layoutIfNeeded()
         syncVisibleSelectionCells(animated: false)
         bottomBar.setEditMode(isInEditMode)
-        bottomBar.setDeleteEnabled(false)
+        refreshSelectionControls()
     }
 
     private func syncVisibleSelectionCells(animated: Bool) {
@@ -346,6 +352,26 @@ final class NoteListViewController: UIViewController {
         return unique
             .filter { $0.section == 0 && $0.row >= 0 && $0.row < rowCount }
             .sorted { $0.row < $1.row }
+    }
+
+    private func toggleSelectAll() {
+        guard isInEditMode else { return }
+
+        let allIDs = Set(NoteStore.shared.notes.map(\.id))
+        if !allIDs.isEmpty, selectedIDs.count == allIDs.count {
+            selectedIDs.removeAll()
+        } else {
+            selectedIDs = allIDs
+        }
+
+        syncVisibleSelectionCells(animated: false)
+        refreshSelectionControls()
+    }
+
+    private func refreshSelectionControls() {
+        let noteCount = NoteStore.shared.notes.count
+        bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
+        bottomBar.setAllSelected(noteCount > 0 && selectedIDs.count == noteCount)
     }
 
     private func deleteSelected() {
@@ -638,7 +664,7 @@ extension NoteListViewController: UITableViewDelegate {
             if let cell = tableView.cellForRow(at: indexPath) as? NoteCell {
                 cell.applySelected(selectedIDs.contains(note.id))
             }
-            bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
+            refreshSelectionControls()
         } else {
             let vc = NoteDetailViewController(note: note)
             navigationController?.pushViewController(vc, animated: true)

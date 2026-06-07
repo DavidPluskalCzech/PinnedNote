@@ -1,6 +1,8 @@
 /* Bottom toolbar — note list */
 "toolbar_edit" = "편집";
 "toolbar_cancel" = "취소";
+"toolbar_select_all" = "모두 선택";
+"toolbar_deselect_all" = "모두 해제";
 
 /* Bottom toolbar — note detail */
 "detail_toolbar_delete" = "삭제";

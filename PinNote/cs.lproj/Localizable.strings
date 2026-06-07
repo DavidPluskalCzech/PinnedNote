@@ -1,6 +1,8 @@
 /* Bottom toolbar — note list */
 "toolbar_edit" = "Upravit";
 "toolbar_cancel" = "Zrušit";
+"toolbar_select_all" = "Vybrat vše";
+"toolbar_deselect_all" = "Odznačit vše";
 
 /* Bottom toolbar — note detail */
 "detail_toolbar_delete" = "Smazat";

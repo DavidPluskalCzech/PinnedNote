@@ -1,6 +1,8 @@
 /* Bottom toolbar — note list */
 "toolbar_edit" = "編集";
 "toolbar_cancel" = "キャンセル";
+"toolbar_select_all" = "すべて選択";
+"toolbar_deselect_all" = "選択解除";
 
 /* Bottom toolbar — note detail */
 "detail_toolbar_delete" = "削除";

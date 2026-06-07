@@ -1,6 +1,8 @@
 /* Bottom toolbar — note list */
 "toolbar_edit" = "सम्पादन";
 "toolbar_cancel" = "रद्द गर्नुहोस्";
+"toolbar_select_all" = "सबै चयन";
+"toolbar_deselect_all" = "सबै हटाउनुहोस्";
 
 /* Bottom toolbar — note detail */
 "detail_toolbar_delete" = "मेटाउनुहोस्";

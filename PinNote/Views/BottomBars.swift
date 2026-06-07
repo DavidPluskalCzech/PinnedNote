@@ -36,11 +36,13 @@ final class NoteListBottomBar: UIView {
     var onSettings: (() -> Void)?
     var onDelete:   (() -> Void)?
     var onCancel:   (() -> Void)?
+    var onSelectAll: (() -> Void)?
 
     private lazy var newNoteButton = makePillButton(systemName: "square.and.pencil", action: #selector(tapNew))
     private lazy var settingsButton = makePillButton(systemName: "gearshape", action: #selector(tapSettings))
     private lazy var editButton = makePillButton(systemName: "checklist", action: #selector(tapEdit))
     private lazy var cancelButton = makeTextButton(title: NSLocalizedString("toolbar_cancel", comment: ""), action: #selector(tapCancel))
+    private lazy var selectAllButton = makeTextButton(title: NSLocalizedString("toolbar_select_all", comment: ""), action: #selector(tapSelectAll))
     private lazy var deleteButton = makePillButton(systemName: "trash", action: #selector(tapDelete))
 
     private lazy var normalBar: UIView = {
@@ -105,12 +107,13 @@ final class NoteListBottomBar: UIView {
     }()
 
     private lazy var editStack: UIStackView = {
-        let stack = UIStackView(arrangedSubviews: [cancelButton, UIView(), deleteButton])
+        let stack = UIStackView(arrangedSubviews: [cancelButton, selectAllButton, UIView(), deleteButton])
         stack.axis = .horizontal
         stack.alignment = .center
         stack.spacing = 12
         stack.isHidden = true
         addPressFeedback(to: cancelButton, targetView: cancelButton)
+        addPressFeedback(to: selectAllButton, targetView: selectAllButton)
         addPressFeedback(to: deleteButton, targetView: deleteButton)
         return stack
     }()
@@ -145,6 +148,12 @@ final class NoteListBottomBar: UIView {
         deleteButton.alpha = enabled ? 1 : 0.38
     }
 
+    func setAllSelected(_ allSelected: Bool) {
+        let titleKey = allSelected ? "toolbar_deselect_all" : "toolbar_select_all"
+        selectAllButton.setTitle(NSLocalizedString(titleKey, comment: ""), for: .normal)
+        selectAllButton.invalidateIntrinsicContentSize()
+    }
+
     func refreshColors() {
         normalBar.backgroundColor = .pnFloatingControlBackground
         normalBar.layer.shadowOpacity = PN.floatingControlShadowOpacity
@@ -157,12 +166,13 @@ final class NoteListBottomBar: UIView {
             button.layer.shadowOpacity = 0
         }
 
-        [cancelButton, deleteButton].forEach { button in
+        [cancelButton, selectAllButton, deleteButton].forEach { button in
             button.backgroundColor = .pnFloatingControlBackground
             button.tintColor = .pnPrimary
             button.layer.shadowOpacity = PN.floatingControlShadowOpacity
         }
         cancelButton.setTitleColor(.pnPrimary, for: .normal)
+        selectAllButton.setTitleColor(.pnPrimary, for: .normal)
         deleteButton.tintColor = .pnDestructive
     }
 
@@ -191,6 +201,9 @@ final class NoteListBottomBar: UIView {
         button.setTitle(title, for: .normal)
         button.setTitleColor(.pnPrimary, for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.72
+        button.titleLabel?.lineBreakMode = .byClipping
         button.backgroundColor = .pnFloatingControlBackground
         button.layer.cornerRadius = PN.floatingControlCornerRadius
         button.layer.masksToBounds = false
@@ -199,7 +212,8 @@ final class NoteListBottomBar: UIView {
         button.layer.shadowOffset = PN.floatingControlShadowOffset
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(greaterThanOrEqualToConstant: 112),
+            button.widthAnchor.constraint(greaterThanOrEqualToConstant: 92),
+            button.widthAnchor.constraint(lessThanOrEqualToConstant: 132),
             button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
         ])
         button.addTarget(self, action: action, for: .primaryActionTriggered)
@@ -261,6 +275,7 @@ final class NoteListBottomBar: UIView {
     @objc private func tapSettings() { onSettings?() }
     @objc private func tapDelete()   { onDelete?() }
     @objc private func tapCancel()   { onCancel?() }
+    @objc private func tapSelectAll() { onSelectAll?() }
 }
 
 // MARK: - NoteDetailBottomBar

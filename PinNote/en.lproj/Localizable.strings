@@ -1,6 +1,8 @@
 /* Bottom toolbar — note list */
 "toolbar_edit" = "Edit";
 "toolbar_cancel" = "Cancel";
+"toolbar_select_all" = "Select all";
+"toolbar_deselect_all" = "Deselect all";
 
 /* Bottom toolbar — note detail */
 "detail_toolbar_delete" = "Delete";
