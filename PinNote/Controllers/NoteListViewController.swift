@@ -23,9 +23,8 @@ final class NoteListViewController: UIViewController {
     private let quickPinRevealThreshold: CGFloat = 56
     private let dragSelectRailWidth: CGFloat = 76
     private let dragSelectAutoScrollZoneHeight: CGFloat = 72
-    private let dragSelectMaxAutoScrollSpeed: CGFloat = 7
+    private let dragSelectMaxAutoScrollSpeed: CGFloat = 4
     private var suppressSelectionUntil: Date?
-    private var dragSelectPathIDs: [UUID] = []
     private var dragSelectInitialSelectedIDs = Set<UUID>()
     private var dragSelectStartID: UUID?
     private var dragSelectFingerDirection: Int?
@@ -336,7 +335,6 @@ final class NoteListViewController: UIViewController {
     }
 
     private func resetDragSelectionState() {
-        dragSelectPathIDs.removeAll()
         dragSelectInitialSelectedIDs.removeAll()
         dragSelectStartID = nil
         dragSelectFingerDirection = nil
@@ -409,7 +407,6 @@ final class NoteListViewController: UIViewController {
     @objc private func handleDragSelectPan(_ gesture: UIPanGestureRecognizer) {
         switch gesture.state {
         case .began:
-            dragSelectPathIDs.removeAll()
             dragSelectInitialSelectedIDs = selectedIDs
             tableView.isScrollEnabled = false
             let viewLocation = gesture.location(in: view)
@@ -426,7 +423,6 @@ final class NoteListViewController: UIViewController {
             selectNotesUnderDrag(at: viewLocation, allowEdgeProjection: true)
 
         case .ended, .cancelled, .failed:
-            dragSelectPathIDs.removeAll()
             dragSelectInitialSelectedIDs.removeAll()
             dragSelectStartID = nil
             dragSelectFingerDirection = nil
@@ -466,24 +462,18 @@ final class NoteListViewController: UIViewController {
               let startRow = notes.firstIndex(where: { $0.id == startID })
         else { return }
 
-        let previousIDs = Set(dragSelectPathIDs)
         let lowerRow = min(startRow, indexPath.row)
         let upperRow = max(startRow, indexPath.row)
         let rangeIDs = notes[lowerRow...upperRow].map(\.id)
 
         let currentIDs = Set(rangeIDs)
-        previousIDs.subtracting(currentIDs).forEach { restoreDragSelection(for: $0) }
-
-        currentIDs.forEach { noteID in
-            if dragSelectIsRemoving {
-                selectedIDs.remove(noteID)
-            } else {
-                selectedIDs.insert(noteID)
-            }
-            refreshDragSelectionCell(noteID: noteID)
+        if dragSelectIsRemoving {
+            selectedIDs = dragSelectInitialSelectedIDs.subtracting(currentIDs)
+        } else {
+            selectedIDs = dragSelectInitialSelectedIDs.union(currentIDs)
         }
 
-        dragSelectPathIDs = rangeIDs
+        syncVisibleSelectionCells(animated: false)
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
     }
 
@@ -532,24 +522,6 @@ final class NoteListViewController: UIViewController {
             dragSelectFingerDirection = delta > 0 ? 1 : -1
             dragSelectLastGestureY = gestureY
         }
-    }
-
-    private func restoreDragSelection(for noteID: UUID) {
-        if dragSelectInitialSelectedIDs.contains(noteID) {
-            selectedIDs.insert(noteID)
-        } else {
-            selectedIDs.remove(noteID)
-        }
-        refreshDragSelectionCell(noteID: noteID)
-    }
-
-    private func refreshDragSelectionCell(noteID: UUID) {
-        guard let row = NoteStore.shared.notes.firstIndex(where: { $0.id == noteID }) else { return }
-        let indexPath = IndexPath(row: row, section: 0)
-        if let cell = tableView.cellForRow(at: indexPath) as? NoteCell {
-            cell.applySelected(selectedIDs.contains(noteID))
-        }
-        bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
     }
 
     private func startDragSelectAutoScroll() {
