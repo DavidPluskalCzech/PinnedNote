@@ -3,6 +3,11 @@ import AudioToolbox
 
 private final class ToolbarButton: UIButton {
     private let minimumHitSize = CGSize(width: 44, height: 44)
+    var horizontalContentPadding: CGFloat = 0 {
+        didSet {
+            invalidateIntrinsicContentSize()
+        }
+    }
     var restingTransform: CGAffineTransform = .identity {
         didSet {
             transform = restingTransform
@@ -12,7 +17,7 @@ private final class ToolbarButton: UIButton {
     override var intrinsicContentSize: CGSize {
         let size = super.intrinsicContentSize
         return CGSize(
-            width: max(size.width, minimumHitSize.width),
+            width: max(size.width + horizontalContentPadding * 2, minimumHitSize.width),
             height: max(size.height, minimumHitSize.height)
         )
     }
@@ -204,6 +209,9 @@ final class NoteListBottomBar: UIView {
         button.titleLabel?.adjustsFontSizeToFitWidth = true
         button.titleLabel?.minimumScaleFactor = 0.72
         button.titleLabel?.lineBreakMode = .byClipping
+        button.horizontalContentPadding = 18
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         button.backgroundColor = .pnFloatingControlBackground
         button.layer.cornerRadius = PN.floatingControlCornerRadius
         button.layer.masksToBounds = false
@@ -212,8 +220,7 @@ final class NoteListBottomBar: UIView {
         button.layer.shadowOffset = PN.floatingControlShadowOffset
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(greaterThanOrEqualToConstant: 92),
-            button.widthAnchor.constraint(lessThanOrEqualToConstant: 132),
+            button.widthAnchor.constraint(greaterThanOrEqualToConstant: 74),
             button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
         ])
         button.addTarget(self, action: action, for: .primaryActionTriggered)
