@@ -28,10 +28,6 @@ final class NoteListViewController: UIViewController {
     private var dragSelectPathIDs: [UUID] = []
     private var dragSelectInitialSelectedIDs = Set<UUID>()
     private var dragSelectStartID: UUID?
-    private var dragSelectStartLocation: CGPoint?
-    private var dragSelectCanRestoreStart = false
-    private var dragSelectStartRestored = false
-    private var dragSelectRowDirection: Int?
     private var dragSelectFingerDirection: Int?
     private var dragSelectLastGestureY: CGFloat?
     private var dragSelectCurrentViewLocation: CGPoint?
@@ -334,7 +330,7 @@ final class NoteListViewController: UIViewController {
         tableView.endEditing(true)
         // Do NOT use tableView.setEditing — that shows the system's native circles.
         // Drive edit-mode UI entirely through the cell's own selection state.
-        syncVisibleSelectionCells(animated: editing)
+        tableView.reloadData()
         bottomBar.setEditMode(isInEditMode)
         bottomBar.setDeleteEnabled(false)
     }
@@ -343,10 +339,6 @@ final class NoteListViewController: UIViewController {
         dragSelectPathIDs.removeAll()
         dragSelectInitialSelectedIDs.removeAll()
         dragSelectStartID = nil
-        dragSelectStartLocation = nil
-        dragSelectCanRestoreStart = false
-        dragSelectStartRestored = false
-        dragSelectRowDirection = nil
         dragSelectFingerDirection = nil
         dragSelectLastGestureY = nil
         dragSelectIsRemoving = false
@@ -422,25 +414,21 @@ final class NoteListViewController: UIViewController {
             tableView.isScrollEnabled = false
             let viewLocation = gesture.location(in: view)
             dragSelectLastGestureY = viewLocation.y
-            dragSelectIsRemoving = isNoteSelectedUnderDrag(at: viewLocation)
+            dragSelectIsRemoving = isNoteSelectedUnderDrag(at: viewLocation, allowEdgeProjection: false)
             dragSelectCurrentViewLocation = viewLocation
-            selectNotesUnderDrag(at: viewLocation)
+            selectNotesUnderDrag(at: viewLocation, allowEdgeProjection: false)
             startDragSelectAutoScroll()
 
         case .changed:
             let viewLocation = gesture.location(in: view)
             updateDragFingerDirection(with: viewLocation.y)
             dragSelectCurrentViewLocation = viewLocation
-            selectNotesUnderDrag(at: viewLocation)
+            selectNotesUnderDrag(at: viewLocation, allowEdgeProjection: true)
 
         case .ended, .cancelled, .failed:
             dragSelectPathIDs.removeAll()
             dragSelectInitialSelectedIDs.removeAll()
             dragSelectStartID = nil
-            dragSelectStartLocation = nil
-            dragSelectCanRestoreStart = false
-            dragSelectStartRestored = false
-            dragSelectRowDirection = nil
             dragSelectFingerDirection = nil
             dragSelectLastGestureY = nil
             dragSelectIsRemoving = false
@@ -453,8 +441,8 @@ final class NoteListViewController: UIViewController {
         }
     }
 
-    private func isNoteSelectedUnderDrag(at viewLocation: CGPoint) -> Bool {
-        guard let indexPath = indexPathForDragSelection(at: viewLocation),
+    private func isNoteSelectedUnderDrag(at viewLocation: CGPoint, allowEdgeProjection: Bool) -> Bool {
+        guard let indexPath = indexPathForDragSelection(at: viewLocation, allowEdgeProjection: allowEdgeProjection),
               indexPath.row < NoteStore.shared.notes.count
         else { return false }
 
@@ -462,9 +450,9 @@ final class NoteListViewController: UIViewController {
         return selectedIDs.contains(note.id)
     }
 
-    private func selectNotesUnderDrag(at viewLocation: CGPoint) {
+    private func selectNotesUnderDrag(at viewLocation: CGPoint, allowEdgeProjection: Bool) {
         guard isInEditMode,
-              let indexPath = indexPathForDragSelection(at: viewLocation),
+              let indexPath = indexPathForDragSelection(at: viewLocation, allowEdgeProjection: allowEdgeProjection),
               indexPath.row < NoteStore.shared.notes.count
         else { return }
 
@@ -472,24 +460,16 @@ final class NoteListViewController: UIViewController {
         let note = notes[indexPath.row]
         if dragSelectStartID == nil {
             dragSelectStartID = note.id
-            dragSelectStartLocation = dragSelectionStartLocation(for: indexPath, fallback: viewLocation)
         }
 
         guard let startID = dragSelectStartID,
               let startRow = notes.firstIndex(where: { $0.id == startID })
         else { return }
 
-        updateDragSelectionDirectionIfNeeded(currentRow: indexPath.row)
-
         let previousIDs = Set(dragSelectPathIDs)
-        let rangeIDs: [UUID]
-        if shouldRestoreDragStart(at: viewLocation, noteID: startID) {
-            rangeIDs = []
-        } else {
-            let lowerRow = min(startRow, indexPath.row)
-            let upperRow = max(startRow, indexPath.row)
-            rangeIDs = notes[lowerRow...upperRow].map(\.id)
-        }
+        let lowerRow = min(startRow, indexPath.row)
+        let upperRow = max(startRow, indexPath.row)
+        let rangeIDs = notes[lowerRow...upperRow].map(\.id)
 
         let currentIDs = Set(rangeIDs)
         previousIDs.subtracting(currentIDs).forEach { restoreDragSelection(for: $0) }
@@ -504,20 +484,10 @@ final class NoteListViewController: UIViewController {
         }
 
         dragSelectPathIDs = rangeIDs
-        dragSelectCanRestoreStart = dragSelectRowDirection != nil
-        dragSelectStartRestored = rangeIDs.isEmpty
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
     }
 
-    private func dragSelectionStartLocation(for indexPath: IndexPath, fallback viewLocation: CGPoint) -> CGPoint {
-        let rect = viewRectForRow(at: indexPath)
-        guard !rect.contains(viewLocation) else { return viewLocation }
-
-        let anchoredY = min(max(viewLocation.y, rect.minY), rect.maxY)
-        return CGPoint(x: viewLocation.x, y: anchoredY)
-    }
-
-    private func indexPathForDragSelection(at viewLocation: CGPoint) -> IndexPath? {
+    private func indexPathForDragSelection(at viewLocation: CGPoint, allowEdgeProjection: Bool) -> IndexPath? {
         let tableViewLocation = view.convert(viewLocation, to: tableView)
         guard tableViewLocation.x <= dragSelectRailWidth,
               !NoteStore.shared.notes.isEmpty
@@ -534,6 +504,8 @@ final class NoteListViewController: UIViewController {
             }
         }
 
+        guard allowEdgeProjection else { return nil }
+
         let firstRect = viewRectForRow(at: first)
         let lastRect = viewRectForRow(at: last)
         if viewLocation.y <= firstRect.minY { return first }
@@ -547,29 +519,6 @@ final class NoteListViewController: UIViewController {
 
     private func viewRectForRow(at indexPath: IndexPath) -> CGRect {
         tableView.convert(tableView.rectForRow(at: indexPath), to: view)
-    }
-
-    private func shouldRestoreDragStart(at location: CGPoint, noteID: UUID) -> Bool {
-        guard dragSelectCanRestoreStart,
-              dragSelectPathIDs.count == 1,
-              noteID == dragSelectStartID,
-              let startLocation = dragSelectStartLocation,
-              let direction = dragSelectRowDirection
-        else { return false }
-
-        return direction > 0
-            ? location.y <= startLocation.y + 8
-            : location.y >= startLocation.y - 8
-    }
-
-    private func updateDragSelectionDirectionIfNeeded(currentRow: Int) {
-        guard dragSelectRowDirection == nil,
-              let startID = dragSelectStartID,
-              let startRow = NoteStore.shared.notes.firstIndex(where: { $0.id == startID }),
-              startRow != currentRow
-        else { return }
-
-        dragSelectRowDirection = startRow < currentRow ? 1 : -1
     }
 
     private func updateDragFingerDirection(with gestureY: CGFloat) {
@@ -650,7 +599,7 @@ final class NoteListViewController: UIViewController {
         }
 
         tableView.contentOffset.y = newOffsetY
-        selectNotesUnderDrag(at: viewLocation)
+        selectNotesUnderDrag(at: viewLocation, allowEdgeProjection: true)
     }
 
     @objc private func handleQuickPinPan(_ gesture: UIPanGestureRecognizer) {
@@ -969,8 +918,12 @@ extension NoteListViewController: UIGestureRecognizerDelegate {
 
         if gestureRecognizer === dragSelectPanGesture {
             guard isInEditMode, !isSwipeActionOpen else { return false }
-            let location = pan.location(in: tableView)
-            guard location.x <= dragSelectRailWidth else { return false }
+            let tableLocation = pan.location(in: tableView)
+            guard tableLocation.x <= dragSelectRailWidth else { return false }
+            let viewLocation = pan.location(in: view)
+            guard indexPathForDragSelection(at: viewLocation, allowEdgeProjection: false) != nil else {
+                return false
+            }
             return abs(velocity.y) >= abs(velocity.x)
         }
 
