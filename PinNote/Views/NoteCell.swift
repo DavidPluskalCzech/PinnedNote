@@ -291,6 +291,8 @@ final class NoteCell: UITableViewCell {
         guard animated else {
             UIView.performWithoutAnimation {
                 self.textLeadingConstraint.constant = targetLeading
+                self.selectionRing.alpha = editing ? 1 : 0
+                self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
                 block()
                 self.contentView.layoutIfNeeded()
                 self.cardView.layoutIfNeeded()
