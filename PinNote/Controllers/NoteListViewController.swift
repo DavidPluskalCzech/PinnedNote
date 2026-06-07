@@ -468,13 +468,24 @@ final class NoteListViewController: UIViewController {
 
         let currentIDs = Set(rangeIDs)
         if dragSelectIsRemoving {
-            selectedIDs = dragSelectInitialSelectedIDs.subtracting(currentIDs)
+            applyDragSelectedIDs(dragSelectInitialSelectedIDs.subtracting(currentIDs))
         } else {
-            selectedIDs = dragSelectInitialSelectedIDs.union(currentIDs)
+            applyDragSelectedIDs(dragSelectInitialSelectedIDs.union(currentIDs))
         }
 
-        syncVisibleSelectionCells(animated: false)
         bottomBar.setDeleteEnabled(!selectedIDs.isEmpty)
+    }
+
+    private func applyDragSelectedIDs(_ nextSelectedIDs: Set<UUID>) {
+        let changedIDs = selectedIDs.symmetricDifference(nextSelectedIDs)
+        selectedIDs = nextSelectedIDs
+
+        changedIDs.forEach { noteID in
+            guard let row = NoteStore.shared.notes.firstIndex(where: { $0.id == noteID }) else { return }
+            let indexPath = IndexPath(row: row, section: 0)
+            guard let cell = tableView.cellForRow(at: indexPath) as? NoteCell else { return }
+            cell.applySelected(selectedIDs.contains(noteID), animated: false)
+        }
     }
 
     private func indexPathForDragSelection(at viewLocation: CGPoint, allowEdgeProjection: Bool) -> IndexPath? {
@@ -483,32 +494,28 @@ final class NoteListViewController: UIViewController {
               !NoteStore.shared.notes.isEmpty
         else { return nil }
 
+        if let indexPath = tableView.indexPathForRow(at: tableViewLocation),
+           indexPath.section == 0,
+           indexPath.row < NoteStore.shared.notes.count {
+            return indexPath
+        }
+
+        guard allowEdgeProjection else { return nil }
+
         let visible = (tableView.indexPathsForVisibleRows ?? [])
             .filter { $0.section == 0 && $0.row < NoteStore.shared.notes.count }
             .sorted { $0.row < $1.row }
         guard let first = visible.first, let last = visible.last else { return nil }
 
-        for indexPath in visible {
-            if viewRectForRow(at: indexPath).contains(viewLocation) {
-                return indexPath
-            }
-        }
-
-        guard allowEdgeProjection else { return nil }
-
-        let firstRect = viewRectForRow(at: first)
-        let lastRect = viewRectForRow(at: last)
-        if viewLocation.y <= firstRect.minY { return first }
-        if viewLocation.y >= lastRect.maxY { return last }
+        let firstRect = tableView.rectForRow(at: first)
+        let lastRect = tableView.rectForRow(at: last)
+        if tableViewLocation.y <= firstRect.minY { return first }
+        if tableViewLocation.y >= lastRect.maxY { return last }
 
         return visible.min { lhs, rhs in
-            abs(viewRectForRow(at: lhs).midY - viewLocation.y) <
-            abs(viewRectForRow(at: rhs).midY - viewLocation.y)
+            abs(tableView.rectForRow(at: lhs).midY - tableViewLocation.y) <
+            abs(tableView.rectForRow(at: rhs).midY - tableViewLocation.y)
         }
-    }
-
-    private func viewRectForRow(at indexPath: IndexPath) -> CGRect {
-        tableView.convert(tableView.rectForRow(at: indexPath), to: view)
     }
 
     private func updateDragFingerDirection(with gestureY: CGFloat) {
