@@ -87,7 +87,7 @@ final class ScheduledPinManager {
     func processScheduledPin(noteID: UUID) async {
         guard let note = NoteStore.shared.notes.first(where: { $0.id == noteID }),
               let scheduledDate = note.scheduledPinDate,
-              scheduledDate <= Date()
+              scheduledDate <= Date().addingTimeInterval(60)
         else {
             await processDuePins()
             return
@@ -141,7 +141,7 @@ final class ScheduledPinManager {
 
     private func notificationText(for note: Note) -> String {
         let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let content = note.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let content = notificationBodyText(from: note.content)
 
         if title.isEmpty {
             return content
@@ -150,5 +150,28 @@ final class ScheduledPinManager {
             return title
         }
         return "\(title)\n\(content)"
+    }
+
+    private func notificationBodyText(from content: String) -> String {
+        content
+            .components(separatedBy: .newlines)
+            .map(notificationLineText)
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func notificationLineText(from line: String) -> String {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return "" }
+
+        guard let item = NoteListItem(line: trimmed) else { return trimmed }
+
+        let text = item.text.trimmingCharacters(in: .whitespaces)
+        switch item.kind {
+        case .checklist:
+            return "\(item.isChecked ? "✓" : "□")  \(text)"
+        case .bullet:
+            return "•  \(text)"
+        }
     }
 }

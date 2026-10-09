@@ -48,6 +48,10 @@ final class NoteListViewController: UIViewController {
             name: .pnThemeChanged, object: nil
         )
         NotificationCenter.default.addObserver(
+            self, selector: #selector(fontChanged),
+            name: .pnFontChanged, object: nil
+        )
+        NotificationCenter.default.addObserver(
             self, selector: #selector(refreshTrialBanner),
             name: .pnPurchaseStateChanged, object: nil
         )
@@ -505,6 +509,10 @@ final class NoteListViewController: UIViewController {
             return nav.topViewController
         }
         return top
+    }
+
+    @objc private func fontChanged() {
+        tableView.reloadData()
     }
 
     @objc private func applyTheme() {

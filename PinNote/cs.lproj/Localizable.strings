@@ -63,6 +63,7 @@
 "settings_title" = "Nastavení";
 "settings_sync_header" = "Měj své poznámky v bezpečí";
 "settings_appearance_header" = "Vzhled";
+"settings_fonts_header" = "Písmo";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "Upgrade";
 "settings_upgrade_footer" = "Měsíční předplatné se automaticky obnovuje. Doživotní přístup je jednorázový nákup.";

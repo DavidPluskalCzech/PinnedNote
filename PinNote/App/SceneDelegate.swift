@@ -30,6 +30,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if let noteID = connectionOptions.notificationResponse?
             .notification.request.content.userInfo["noteID"] as? String {
             UserDefaults.standard.set(noteID, forKey: "openNoteOnLaunch")
+            resetScheduledPinIfNeeded(noteIDString: noteID)
         }
 
         scheduleReviewPromptIfNeeded(in: windowScene)
@@ -64,6 +65,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         openPendingNoteIfPossible()
     }
 
+    private func resetScheduledPinIfNeeded(noteIDString: String) {
+        guard let noteID = UUID(uuidString: noteIDString) else { return }
+        Task { @MainActor in
+            await ScheduledPinManager.shared.processScheduledPin(noteID: noteID)
+        }
+    }
+
     private func openPendingNoteIfPossible() {
         guard let noteID = UserDefaults.standard.string(forKey: "openNoteOnLaunch") else { return }
 
@@ -75,7 +83,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         UserDefaults.standard.removeObject(forKey: "openNoteOnLaunch")
-        NotificationCenter.default.post(name: .pnOpenNote, object: nil, userInfo: ["noteID": noteID])
+        Task { @MainActor in
+            if let uuid = UUID(uuidString: noteID) {
+                await ScheduledPinManager.shared.processScheduledPin(noteID: uuid)
+            }
+            NotificationCenter.default.post(name: .pnOpenNote, object: nil, userInfo: ["noteID": noteID])
+        }
     }
 
     func openPendingNewNoteIfPossible() {

@@ -63,6 +63,7 @@
 "settings_title" = "설정";
 "settings_sync_header" = "메모를 안전하게 보관";
 "settings_appearance_header" = "테마";
+"settings_fonts_header" = "글꼴";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "업그레이드";
 "settings_upgrade_footer" = "월간 구독은 자동으로 갱신됩니다. 평생 이용권은 한 번만 결제됩니다.";

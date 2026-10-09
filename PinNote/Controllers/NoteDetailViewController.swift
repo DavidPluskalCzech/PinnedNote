@@ -1,6 +1,62 @@
 import UIKit
 import Combine
 
+private final class ChecklistOverlayView: UIView {
+    struct Entry {
+        enum Kind {
+            case checkbox(checked: Bool)
+            case bullet
+        }
+
+        let rect: CGRect
+        let kind: Kind
+    }
+
+    var entries: [Entry] = [] {
+        didSet { setNeedsDisplay() }
+    }
+
+    var strokeColor: UIColor = .label {
+        didSet { setNeedsDisplay() }
+    }
+
+    var coverColor: UIColor = .systemBackground {
+        didSet { setNeedsDisplay() }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isOpaque = false
+        isUserInteractionEnabled = false
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+
+        for entry in entries {
+            switch entry.kind {
+            case .checkbox(let checked):
+                drawCover(around: entry.rect, context: context)
+                strokeColor.setFill()
+                UIBezierPath(cgPath: HandDrawnCheckbox.path(in: entry.rect, checked: checked)).fill()
+            case .bullet:
+                // The dash underneath is drawn in clear, so no cover is needed.
+                context.setFillColor(strokeColor.cgColor)
+                context.fillEllipse(in: entry.rect)
+            }
+        }
+    }
+
+    private func drawCover(around rect: CGRect, context: CGContext) {
+        let coverRect = rect.insetBy(dx: -3.5, dy: -2.5)
+        context.setFillColor(coverColor.cgColor)
+        context.fill(coverRect)
+    }
+}
+
 final class NoteDetailViewController: UIViewController {
 
     // MARK: - State
@@ -23,7 +79,16 @@ final class NoteDetailViewController: UIViewController {
     private let doneButton   = UIButton(type: .custom)
     private let headerFadeView = UIView()
     private let headerFadeLayer = CAGradientLayer()
+    private let checklistOverlay = ChecklistOverlayView()
     private let readableGuide = UILayoutGuide()
+    private weak var checklistTapGesture: UITapGestureRecognizer?
+    private weak var wordSelectionLongPressGesture: UILongPressGestureRecognizer?
+    private var wordSelectionAnchorRange: NSRange?
+    private var isRefreshingChecklistDisplay = false
+    private var isApplyingListParagraphStyles = false
+    private var isAnimatingKeyboardLayout = false
+    private var isKeepingSelectionOutOfListPrefix = false
+    private var lastSelectedRange = NSRange(location: 0, length: 0)
 
     // MARK: - Init
 
@@ -55,12 +120,18 @@ final class NoteDetailViewController: UIViewController {
 
         titleField.text = note.title
         textView.text = note.content
+        applyListParagraphStyles()
+        refreshChecklistDisplay()
         bottomBar.setPinned(note.isPinned)
         refreshScheduledState()
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(applyTheme),
             name: .pnThemeChanged, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(applyFont),
+            name: .pnFontChanged, object: nil
         )
         NotificationCenter.default.addObserver(
             self, selector: #selector(persistBeforeAppSuspends),
@@ -110,6 +181,7 @@ final class NoteDetailViewController: UIViewController {
         super.viewDidLayoutSubviews()
         headerFadeLayer.frame = headerFadeView.bounds
         updateTextViewBottomInset()
+        refreshChecklistDisplay()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -212,6 +284,7 @@ final class NoteDetailViewController: UIViewController {
         bottomBar.onDelete = { [weak self] in self?.confirmDelete() }
         bottomBar.onCopy   = { [weak self] in self?.copyNoteToPasteboard() }
         bottomBar.onSchedule = { [weak self] in self?.showSchedulePicker() }
+        bottomBar.onChecklist = { [weak self] in self?.insertChecklistItem() }
     }
 
     private func setupTextView() {
@@ -228,6 +301,22 @@ final class NoteDetailViewController: UIViewController {
         refreshRuledBackground()
         textView.delegate            = self
         textView.autocorrectionType  = .yes
+        textView.isSelectable        = true
+        textView.textDragInteraction?.isEnabled = false
+        checklistOverlay.strokeColor = .pnPrimary
+        checklistOverlay.coverColor = .pnBackground
+        textView.addSubview(checklistOverlay)
+        let checklistTap = UITapGestureRecognizer(target: self, action: #selector(handleChecklistTap(_:)))
+        checklistTap.cancelsTouchesInView = false
+        checklistTap.delegate = self
+        checklistTapGesture = checklistTap
+        textView.addGestureRecognizer(checklistTap)
+        let wordSelectionPress = UILongPressGestureRecognizer(target: self, action: #selector(handleWordSelectionLongPress(_:)))
+        wordSelectionPress.minimumPressDuration = 0.45
+        wordSelectionPress.cancelsTouchesInView = true
+        wordSelectionPress.delegate = self
+        wordSelectionLongPressGesture = wordSelectionPress
+        textView.addGestureRecognizer(wordSelectionPress)
         // Swipe-down to dismiss keyboard. alwaysBounceVertical ensures the
         // gesture fires even when text is short and there's nothing to scroll.
         textView.keyboardDismissMode  = .interactive
@@ -287,20 +376,28 @@ final class NoteDetailViewController: UIViewController {
         let overlap = view.bounds.maxY - view.safeAreaInsets.bottom - keyboardInView.minY
         let gap: CGFloat = 8
         keyboardBottomConstraint?.constant = overlap > 0 ? -(overlap + gap) : 0
+        isAnimatingKeyboardLayout = true
         UIView.animate(withDuration: duration) {
             self.view.layoutIfNeeded()
             self.updateTextViewBottomInset()
             self.doneButton.alpha = overlap > 0 ? 1 : 0
+        } completion: { _ in
+            self.isAnimatingKeyboardLayout = false
+            self.refreshChecklistDisplay()
         }
     }
 
     @objc private func keyboardWillHide(_ n: Notification) {
         guard let duration = n.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else { return }
         keyboardBottomConstraint?.constant = 0
+        isAnimatingKeyboardLayout = true
         UIView.animate(withDuration: duration) {
             self.view.layoutIfNeeded()
             self.updateTextViewBottomInset()
             self.doneButton.alpha = 0
+        } completion: { _ in
+            self.isAnimatingKeyboardLayout = false
+            self.refreshChecklistDisplay()
         }
     }
 
@@ -327,6 +424,15 @@ final class NoteDetailViewController: UIViewController {
 
     // MARK: - Actions
 
+    @objc private func applyFont() {
+        titleField.font = PN.font(22, bold: true)
+        textView.font   = PN.font(17, bold: true)
+        updateTitlePlaceholder()
+        applyListParagraphStyles()
+        refreshRuledBackground()
+        refreshChecklistDisplay()
+    }
+
     @objc private func applyTheme() {
         view.backgroundColor     = .pnBackground
         titleField.textColor     = .pnPrimary
@@ -334,6 +440,10 @@ final class NoteDetailViewController: UIViewController {
         textView.textColor       = .pnPrimary
         textView.tintColor       = .pnTextSelection
         textView.keyboardAppearance = ThemeManager.shared.current == .dark ? .dark : .light
+        checklistOverlay.strokeColor = .pnPrimary
+        checklistOverlay.coverColor = .pnBackground
+        applyListParagraphStyles()
+        refreshChecklistDisplay()
         refreshRuledBackground()
         refreshHeaderFade()
         doneButton.setTitleColor(.pnPrimary, for: .normal)
@@ -523,6 +633,315 @@ final class NoteDetailViewController: UIViewController {
         )
     }
 
+    private func insertChecklistItem() {
+        textView.becomeFirstResponder()
+
+        let nsText = textView.text as NSString
+        let range = textView.selectedRange
+        guard range.location <= nsText.length else { return }
+
+        let lineBounds = currentLineBounds(in: nsText, at: range.location)
+        let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+        let currentLine = nsText.substring(with: lineRange)
+
+        if NoteListItem(line: currentLine)?.kind == .checklist {
+            toggleChecklistItem(at: range.location)
+            return
+        }
+
+        let trimmedLine = currentLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedLine.isEmpty {
+            replaceText(
+                in: textView,
+                range: lineRange,
+                with: uncheckedChecklistPrefix,
+                cursorOffset: lineBounds.start + uncheckedChecklistPrefixLength
+            )
+        } else {
+            replaceText(
+                in: textView,
+                range: NSRange(location: lineBounds.start, length: 0),
+                with: uncheckedChecklistPrefix,
+                cursorOffset: range.location + uncheckedChecklistPrefixLength
+            )
+        }
+    }
+
+    @objc private func handleChecklistTap(_ gesture: UITapGestureRecognizer) {
+        guard gesture.state == .ended else { return }
+
+        guard let line = lineInfo(at: gesture.location(in: textView)) else { return }
+        toggleChecklistItem(at: line.characterIndex, onlyWhenNearCheckbox: true)
+    }
+
+    @objc private func handleWordSelectionLongPress(_ gesture: UILongPressGestureRecognizer) {
+        let point = gesture.location(in: textView)
+
+        switch gesture.state {
+        case .began:
+            guard !isPointInsideChecklistHitArea(point),
+                  let range = wordRange(at: point) else {
+                wordSelectionAnchorRange = nil
+                return
+            }
+            let contentOffset = textView.contentOffset
+            if !textView.isFirstResponder {
+                textView.becomeFirstResponder()
+                textView.layoutIfNeeded()
+                textView.setContentOffset(contentOffset, animated: false)
+            }
+            wordSelectionAnchorRange = range
+            selectText(range)
+
+        case .changed:
+            guard let anchorRange = wordSelectionAnchorRange else { return }
+            let currentRange = wordRange(at: point) ?? characterRange(at: point)
+            let start = min(anchorRange.location, currentRange.location)
+            let end = max(NSMaxRange(anchorRange), NSMaxRange(currentRange))
+            selectText(NSRange(location: start, length: max(0, end - start)))
+
+        case .ended, .cancelled, .failed:
+            wordSelectionAnchorRange = nil
+
+        default:
+            break
+        }
+    }
+
+    private func wordRange(at point: CGPoint) -> NSRange? {
+        guard let position = textView.closestPosition(to: point),
+              let wordRange = textView.tokenizer.rangeEnclosingPosition(
+                position,
+                with: .word,
+                inDirection: UITextDirection(rawValue: UITextLayoutDirection.right.rawValue)
+              ),
+              let selectedText = textView.text(in: wordRange),
+              !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return nsRange(from: wordRange)
+    }
+
+    private func characterRange(at point: CGPoint) -> NSRange {
+        guard let position = textView.closestPosition(to: point) else {
+            return NSRange(location: textView.selectedRange.location, length: 0)
+        }
+        let location = textView.offset(from: textView.beginningOfDocument, to: position)
+        return NSRange(location: min(max(location, 0), (textView.text as NSString).length), length: 0)
+    }
+
+    private func nsRange(from textRange: UITextRange) -> NSRange {
+        let location = textView.offset(from: textView.beginningOfDocument, to: textRange.start)
+        let end = textView.offset(from: textView.beginningOfDocument, to: textRange.end)
+        return NSRange(location: max(0, location), length: max(0, end - location))
+    }
+
+    private func selectText(_ range: NSRange) {
+        guard let start = textView.position(from: textView.beginningOfDocument, offset: range.location),
+              let end = textView.position(from: textView.beginningOfDocument, offset: NSMaxRange(range)),
+              let selectedRange = textView.textRange(from: start, to: end) else {
+            return
+        }
+        textView.selectedTextRange = selectedRange
+    }
+
+    private func isPointInsideChecklistHitArea(_ point: CGPoint) -> Bool {
+        guard let line = lineInfo(at: point),
+              let item = NoteListItem(line: line.text),
+              item.kind == .checklist else {
+            return false
+        }
+
+        let nsText = textView.text as NSString
+        let lineBounds = currentLineBounds(in: nsText, at: line.characterIndex)
+        return checklistHitRect(for: lineBounds, item: item)?.contains(point) == true
+    }
+
+    private func toggleChecklistItem(at location: Int, onlyWhenNearCheckbox: Bool = false) {
+        let nsText = textView.text as NSString
+        guard location <= nsText.length else { return }
+
+        let lineBounds = currentLineBounds(in: nsText, at: location)
+        let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+        let currentLine = nsText.substring(with: lineRange)
+        guard let info = NoteListItem(line: currentLine), info.kind == .checklist else { return }
+
+        let offsetInLine = max(0, location - lineBounds.start)
+        if onlyWhenNearCheckbox && offsetInLine > info.prefixLength {
+            return
+        }
+
+        let replacement = info.isChecked ? uncheckedChecklistPrefix : checkedChecklistPrefix
+        replaceText(
+            in: textView,
+            range: NSRange(location: lineBounds.start, length: info.prefixLength),
+            with: replacement,
+            cursorOffset: min(textView.selectedRange.location, nsText.length)
+        )
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func refreshChecklistDisplay() {
+        guard !isRefreshingChecklistDisplay else { return }
+        guard isViewLoaded else { return }
+        guard !isAnimatingKeyboardLayout else { return }
+        isRefreshingChecklistDisplay = true
+        defer { isRefreshingChecklistDisplay = false }
+
+        let nsText = textView.text as NSString
+
+        var entries: [ChecklistOverlayView.Entry] = []
+        var lineStart = 0
+
+        while lineStart <= nsText.length {
+            let lineBounds = currentLineBounds(in: nsText, at: lineStart)
+            let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+            let line = nsText.substring(with: lineRange)
+
+            if let item = NoteListItem(line: line), item.kind == .bullet,
+               let dotRect = bulletDotRect(for: item, lineStart: lineBounds.start) {
+                entries.append(ChecklistOverlayView.Entry(rect: dotRect, kind: .bullet))
+            } else if let item = NoteListItem(line: line), item.kind == .checklist {
+                let markerRange = NSRange(location: lineBounds.start, length: item.prefixLength)
+                if NSMaxRange(markerRange) <= nsText.length {
+                    let markerLocation = lineBounds.start + item.markerOffset
+                    let glyphRange = textView.layoutManager.glyphRange(
+                        forCharacterRange: NSRange(location: markerLocation, length: 1),
+                        actualCharacterRange: nil
+                    )
+                    let lineFragment = textView.layoutManager.lineFragmentRect(
+                        forGlyphAt: glyphRange.location,
+                        effectiveRange: nil
+                    )
+                    let glyphRect = textView.layoutManager.boundingRect(
+                        forGlyphRange: glyphRange,
+                        in: textView.textContainer
+                    )
+                    let boxSize = checkboxSize
+                    let x = textView.textContainerInset.left + glyphRect.minX + 1
+                    let y = textView.textContainerInset.top + lineFragment.midY - boxSize / 2
+                    entries.append(
+                        ChecklistOverlayView.Entry(
+                            rect: CGRect(x: x, y: y, width: boxSize, height: boxSize),
+                            kind: .checkbox(checked: item.isChecked)
+                        )
+                    )
+                }
+            }
+
+            guard lineBounds.end < nsText.length else { break }
+            lineStart = lineBounds.end + 1
+        }
+
+        let contentHeight = max(textView.contentSize.height, textView.bounds.height)
+        checklistOverlay.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: max(textView.contentSize.width, textView.bounds.width),
+            height: contentHeight
+        )
+        checklistOverlay.entries = entries
+    }
+
+    /// Side of the drawn checkbox for the editor font.
+    private var checkboxSize: CGFloat {
+        min(22, max(18, (textView.font?.lineHeight ?? 22) - 3))
+    }
+
+    /// Space between a list marker (checkbox or bullet dot) and the item text.
+    private var listMarkerGap: CGFloat {
+        round(checkboxSize * 0.85)
+    }
+
+    /// The bullet's dot, at the middle of the x-height. It ends `listMarkerGap` before
+    /// the item text, like a checkbox does, and sits on the dash when there's no gap.
+    private func bulletDotRect(for item: NoteListItem, lineStart: Int) -> CGRect? {
+        let nsText = textView.text as NSString
+        let dashLocation = lineStart + item.markerOffset
+        guard dashLocation < nsText.length else { return nil }
+        let layoutManager = textView.layoutManager
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: dashLocation)
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
+
+        let font = textView.font ?? PN.font(17, bold: true)
+        let lineFragment = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let dashOrigin = layoutManager.location(forGlyphAt: glyphIndex)
+        let diameter = max(5, round(font.lineHeight * 0.2))
+
+        let rightEdge: CGFloat
+        if item.prefixLength > item.markerOffset + 1 {
+            // The space ending the prefix comes after the widened gap, so it marks
+            // where the item text starts.
+            let spaceGlyph = layoutManager.glyphIndexForCharacter(at: lineStart + item.prefixLength - 1)
+            let spaceWidth = (" " as NSString).size(withAttributes: [.font: font]).width
+            let textStart = layoutManager.location(forGlyphAt: spaceGlyph).x + spaceWidth
+            rightEdge = textStart - listMarkerGap
+        } else {
+            let dashWidth = ("-" as NSString).size(withAttributes: [.font: font]).width
+            rightEdge = dashOrigin.x + (dashWidth + diameter) / 2
+        }
+
+        return CGRect(
+            x: textView.textContainerInset.left + lineFragment.minX + rightEdge - diameter,
+            y: textView.textContainerInset.top + lineFragment.minY + dashOrigin.y - font.xHeight / 2 - diameter / 2,
+            width: diameter,
+            height: diameter
+        )
+    }
+
+    private func lineInfo(at point: CGPoint) -> (text: String, characterIndex: Int, characterOffset: Int)? {
+        var location = point
+        location.x -= textView.textContainerInset.left
+        location.y -= textView.textContainerInset.top
+        guard location.x >= -8, location.y >= -8 else { return nil }
+
+        let glyphIndex = textView.layoutManager.glyphIndex(
+            for: location,
+            in: textView.textContainer,
+            fractionOfDistanceThroughGlyph: nil
+        )
+        let characterIndex = textView.layoutManager.characterIndexForGlyph(at: glyphIndex)
+        let nsText = textView.text as NSString
+        guard characterIndex <= nsText.length else { return nil }
+
+        let lineBounds = currentLineBounds(in: nsText, at: characterIndex)
+        let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+        return (
+            nsText.substring(with: lineRange),
+            characterIndex,
+            max(0, characterIndex - lineBounds.start)
+        )
+    }
+
+    private func checklistHitRect(for lineBounds: (start: Int, end: Int), item: NoteListItem) -> CGRect? {
+        let nsText = textView.text as NSString
+        let markerLocation = lineBounds.start + item.markerOffset
+        guard markerLocation < nsText.length else { return nil }
+
+        let glyphRange = textView.layoutManager.glyphRange(
+            forCharacterRange: NSRange(location: markerLocation, length: 1),
+            actualCharacterRange: nil
+        )
+        guard glyphRange.location != NSNotFound else { return nil }
+
+        let lineFragment = textView.layoutManager.lineFragmentRect(
+            forGlyphAt: glyphRange.location,
+            effectiveRange: nil
+        )
+        let glyphRect = textView.layoutManager.boundingRect(
+            forGlyphRange: glyphRange,
+            in: textView.textContainer
+        )
+        let boxSize = checkboxSize
+        let boxRect = CGRect(
+            x: textView.textContainerInset.left + glyphRect.minX + 1,
+            y: textView.textContainerInset.top + lineFragment.midY - boxSize / 2,
+            width: boxSize,
+            height: boxSize
+        )
+        return boxRect.insetBy(dx: -8, dy: -8)
+    }
+
     private func showSchedulePicker() {
         let isEmpty =
             (titleField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -645,20 +1064,64 @@ extension NoteDetailViewController: UITextFieldDelegate {
 
 extension NoteDetailViewController: UITextViewDelegate {
 
-    private var bulletPrefix: String { "●  " }
-    private var supportedBulletPrefixes: [String] { [bulletPrefix, "• "] }
+    private var bulletPrefix: String { "  - " }
+    private var uncheckedChecklistPrefix: String { "  \(NoteListItem.uncheckedMarker)    " }
+    private var checkedChecklistPrefix: String { "  \(NoteListItem.checkedMarker)    " }
+    private var uncheckedChecklistPrefixLength: Int { (uncheckedChecklistPrefix as NSString).length }
 
     func textViewDidChange(_ textView: UITextView) {
+        guard !isRefreshingChecklistDisplay else { return }
         isDirty = true
         note.content = textView.text
+        applyListParagraphStyles()
+        refreshChecklistDisplay()
         if note.isPinned {
             LiveActivityManager.shared.update(with: note)
         }
     }
 
+    /// The cursor never rests inside a list prefix (left of the item text): a tap on
+    /// the checkbox, a dragged handle or arrow keys land at the start of the text.
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        guard !isKeepingSelectionOutOfListPrefix,
+              textView.markedTextRange == nil else { return }
+
+        let selection = textView.selectedRange
+        let previousSelection = lastSelectedRange
+        lastSelectedRange = selection
+        let nsText = textView.text as NSString
+        let lineBounds = currentLineBounds(in: nsText, at: selection.location)
+        // Selections spanning several lines may include whole items; leave them be.
+        guard NSMaxRange(selection) <= lineBounds.end else { return }
+
+        let line = nsText.substring(with: NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start))
+        guard let item = NoteListItem(line: line) else { return }
+
+        let textStart = lineBounds.start + item.prefixLength
+        guard selection.location < textStart else { return }
+
+        // Moving left from the start of the text (arrow keys) continues to the end of
+        // the previous line instead of bouncing back.
+        let isStepLeftFromTextStart = selection.length == 0
+            && previousSelection == NSRange(location: textStart, length: 0)
+            && lineBounds.start > 0
+        let adjusted = isStepLeftFromTextStart
+            ? NSRange(location: lineBounds.start - 1, length: 0)
+            : NSRange(location: textStart, length: max(NSMaxRange(selection), textStart) - textStart)
+
+        isKeepingSelectionOutOfListPrefix = true
+        textView.selectedRange = adjusted
+        isKeepingSelectionOutOfListPrefix = false
+        lastSelectedRange = adjusted
+    }
+
     func textView(_ textView: UITextView,
                   shouldChangeTextIn range: NSRange,
         replacementText text: String) -> Bool {
+
+        // IME composition (Japanese, Korean, …) must not be rewritten mid-way;
+        // list handling runs once the marked text is committed.
+        guard textView.markedTextRange == nil else { return true }
 
         let nsText = textView.text as NSString
         guard range.location <= nsText.length,
@@ -666,63 +1129,278 @@ extension NoteDetailViewController: UITextViewDelegate {
             return false
         }
 
-        // Auto-bullet: typing " " after a lone "-" at line start → replace with a bullet.
-        if text == " " {
-            let lineStart = nsText.lineRange(for: NSRange(location: range.location, length: 0)).location
-            let charsFromLineStart = range.location - lineStart
-            // Only trigger when cursor is right after a single "-"
-            if charsFromLineStart == 1,
-               nsText.substring(with: NSRange(location: lineStart, length: 1)) == "-" {
-                // Replace "-" with the bullet prefix (bullet + spacing already included)
-                guard
-                    let start = textView.position(from: textView.beginningOfDocument, offset: lineStart),
-                    let end = textView.position(from: textView.beginningOfDocument, offset: range.location),
-                    let textRange = textView.textRange(from: start, to: end)
-                else { return true }
-                textView.replace(textRange, withText: bulletPrefix)
-                isDirty = true
-                note.content = textView.text
-                return false  // we already inserted the space as part of the bullet prefix
+        if text.isEmpty,
+           range.length > 0,
+           shouldRemoveListPrefix(in: nsText, changing: range) {
+            return false
+        }
+
+        if shouldNormalizePastedListText(text) {
+            let normalizedText = normalizedPastedListText(text)
+            if normalizedText != text {
+                replaceText(
+                    in: textView,
+                    range: range,
+                    with: normalizedText,
+                    cursorOffset: range.location + (normalizedText as NSString).length
+                )
+                return false
             }
         }
 
-        // Auto-continue bullet on new line
-        if text == "\n" || text == "\r" {
-            let lineRange   = nsText.lineRange(for: NSRange(location: range.location, length: 0))
-            let currentLine = nsText.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        // Keep typed bullets lightly indented without changing them to symbol bullets.
+        if text == " " {
+            let lineStart = currentLineBounds(in: nsText, at: range.location).start
+            let charsFromLineStart = range.location - lineStart
+            if charsFromLineStart == 1,
+               nsText.substring(with: NSRange(location: lineStart, length: 1)) == "-" {
+                replaceText(
+                    in: textView,
+                    range: NSRange(location: lineStart, length: range.location - lineStart),
+                    with: bulletPrefix,
+                    cursorOffset: lineStart + bulletPrefix.count
+                )
+                return false
+            }
+        }
 
-            if let currentPrefix = supportedBulletPrefixes.first(where: { currentLine.hasPrefix($0) }) {
-                let bulletText = String(currentLine.dropFirst(currentPrefix.count))
-                if bulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // Empty bullet line → strip the bullet and stop
-                    if let swiftRange = Range(lineRange, in: textView.text) {
-                        textView.text.replaceSubrange(swiftRange, with: "")
-                        isDirty = true
-                        note.content = textView.text
-                    }
+        // Auto-continue bullet on new line. Autocorrect can submit a corrected word
+        // and the newline in the same replacement, so detect newlines inside text too.
+        let replacementText = text as NSString
+        let newlineRange = replacementText.rangeOfCharacter(from: .newlines)
+        if newlineRange.location != NSNotFound {
+            let prospectiveText = nsText.replacingCharacters(in: range, with: text) as NSString
+            let newlineLocation = range.location + newlineRange.location
+            let lineBounds = currentLineBounds(in: prospectiveText, at: newlineLocation)
+            let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+            let currentLine = prospectiveText.substring(with: lineRange)
+
+            if let item = NoteListItem(line: currentLine) {
+                if item.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    // Empty bullet line -> strip the bullet and stop the list.
+                    let originalLineBounds = currentLineBounds(in: nsText, at: range.location)
+                    let originalLineRange = NSRange(
+                        location: originalLineBounds.start,
+                        length: originalLineBounds.end - originalLineBounds.start
+                    )
+                    replaceText(
+                        in: textView,
+                        range: originalLineRange,
+                        with: "",
+                        cursorOffset: originalLineBounds.start
+                    )
                     return false
                 }
-                // Non-empty bullet line → start a new bullet
-                let insert = "\n\(bulletPrefix)"
-                guard
-                    let pos = textView.position(from: textView.beginningOfDocument, offset: range.location),
-                    let textRange = textView.textRange(from: pos, to: pos)
-                else { return true }
-                textView.replace(textRange, withText: insert)
-                isDirty = true
-                note.content = textView.text
+                // Non-empty list line -> start a new list item.
+                let nextPrefix = item.kind == .checklist ? uncheckedChecklistPrefix : bulletPrefix
+                let adjustedReplacement = replacementText.replacingCharacters(
+                    in: newlineRange,
+                    with: "\n\(nextPrefix)"
+                )
+                replaceText(
+                    in: textView,
+                    range: range,
+                    with: adjustedReplacement,
+                    cursorOffset: range.location + (adjustedReplacement as NSString).length
+                )
                 return false
             }
         }
 
         return true
     }
+
+    private func shouldNormalizePastedListText(_ text: String) -> Bool {
+        text.contains("\n") || NoteListItem.containsChecklistMarker(text)
+    }
+
+    private func normalizedPastedListText(_ text: String) -> String {
+        text
+            .components(separatedBy: "\n")
+            .map(normalizedPastedListLine)
+            .joined(separator: "\n")
+    }
+
+    private func normalizedPastedListLine(_ line: String) -> String {
+        guard let item = NoteListItem(line: line), item.kind == .checklist else { return line }
+        let prefix = item.isChecked ? checkedChecklistPrefix : uncheckedChecklistPrefix
+        return "\(prefix)\(item.text)"
+    }
+
+    /// Backspace at the start of a list item removes its whole marker: an empty item
+    /// becomes an empty line, a filled one keeps its text as a plain line.
+    private func shouldRemoveListPrefix(in text: NSString, changing range: NSRange) -> Bool {
+        let lineBounds = currentLineBounds(in: text, at: range.location)
+        let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+        let currentLine = text.substring(with: lineRange)
+
+        guard let item = NoteListItem(line: currentLine) else { return false }
+
+        // Only deletions that stay inside the prefix; a selection reaching into the
+        // text or other lines deletes normally.
+        let prefixRange = NSRange(location: lineBounds.start, length: item.prefixLength)
+        guard range.location >= prefixRange.location,
+              NSMaxRange(range) <= NSMaxRange(prefixRange) else { return false }
+
+        let isEmpty = item.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        replaceText(
+            in: textView,
+            range: isEmpty ? lineRange : prefixRange,
+            with: "",
+            cursorOffset: lineBounds.start
+        )
+        return true
+    }
+
+    private func currentLineBounds(in text: NSString, at location: Int) -> (start: Int, end: Int) {
+        let safeLocation = min(max(location, 0), text.length)
+        let prefix = text.substring(to: safeLocation) as NSString
+        let previousNewline = prefix.range(of: "\n", options: .backwards)
+        let start = previousNewline.location == NSNotFound ? 0 : previousNewline.location + 1
+
+        let suffixRange = NSRange(location: safeLocation, length: text.length - safeLocation)
+        let nextNewline = text.range(of: "\n", options: [], range: suffixRange)
+        let end = nextNewline.location == NSNotFound ? text.length : nextNewline.location
+
+        return (start, end)
+    }
+
+    private func replaceText(in textView: UITextView, range: NSRange, with replacement: String, cursorOffset: Int) {
+        guard let start = textView.position(from: textView.beginningOfDocument, offset: range.location),
+              let end = textView.position(from: textView.beginningOfDocument, offset: NSMaxRange(range)),
+              let uiTextRange = textView.textRange(from: start, to: end) else {
+            return
+        }
+
+        textView.replace(uiTextRange, withText: replacement)
+        let updatedText = textView.text ?? ""
+        let safeCursorOffset = min(cursorOffset, (updatedText as NSString).length)
+        if let cursorPosition = textView.position(from: textView.beginningOfDocument, offset: safeCursorOffset) {
+            textView.selectedTextRange = textView.textRange(from: cursorPosition, to: cursorPosition)
+        }
+        isDirty = true
+        note.content = updatedText
+        applyListParagraphStyles()
+        refreshChecklistDisplay()
+        if note.isPinned {
+            LiveActivityManager.shared.update(with: note)
+        }
+    }
+
+    private func applyListParagraphStyles() {
+        guard !isApplyingListParagraphStyles else { return }
+        guard textView.textStorage.length > 0 else { return }
+        // Touching attributes or the selection while text is marked cancels the IME composition.
+        guard textView.markedTextRange == nil else { return }
+
+        isApplyingListParagraphStyles = true
+        defer { isApplyingListParagraphStyles = false }
+
+        let selectedRange = textView.selectedRange
+        let font = textView.font ?? PN.font(17, bold: true)
+        let nsText = textView.text as NSString
+        let fullRange = NSRange(location: 0, length: nsText.length)
+
+        func width(_ string: String) -> CGFloat {
+            (string as NSString).size(withAttributes: [.font: font]).width
+        }
+        // Item text starts one marker gap after the checkbox (drawn 1pt after the
+        // marker glyph). Bullets use the standard indent, so mixed lists share a column.
+        func textColumn(indent: Substring) -> CGFloat {
+            ceil(width(String(indent)) + 1 + checkboxSize + listMarkerGap)
+        }
+        let bulletTextColumn = textColumn(indent: "  ")
+
+        textView.textStorage.beginEditing()
+        textView.textStorage.removeAttribute(.paragraphStyle, range: fullRange)
+        textView.textStorage.removeAttribute(.kern, range: fullRange)
+        textView.textStorage.addAttribute(.foregroundColor, value: textView.textColor ?? UIColor.pnPrimary, range: fullRange)
+
+        var lineStart = 0
+        while lineStart <= nsText.length {
+            let lineBounds = currentLineBounds(in: nsText, at: lineStart)
+            let lineRange = NSRange(location: lineBounds.start, length: lineBounds.end - lineBounds.start)
+            let line = nsText.substring(with: lineRange)
+
+            if let item = NoteListItem(line: line) {
+                let prefix = (line as NSString).substring(to: min(item.prefixLength, (line as NSString).length))
+                var headIndent = ceil(width(prefix))
+
+                if item.kind == .bullet {
+                    textView.textStorage.addAttribute(
+                        .foregroundColor,
+                        value: UIColor.clear,
+                        range: NSRange(location: lineBounds.start + item.markerOffset, length: 1)
+                    )
+                }
+
+                if item.prefixLength > item.markerOffset + 1 {
+                    // Widen the space after the marker into one gap instead of padding
+                    // with more spaces. The kern sits on the marker, so text typed after
+                    // the prefix never inherits it.
+                    let column = item.kind == .bullet ? bulletTextColumn : textColumn(indent: item.indent)
+                    let natural = width(prefix)
+                    let extra = max(0, column - natural)
+                    textView.textStorage.addAttribute(
+                        .kern,
+                        value: extra,
+                        range: NSRange(location: lineBounds.start + item.markerOffset, length: 1)
+                    )
+                    headIndent = ceil(natural + extra)
+                }
+
+                let paragraphStyle = NSMutableParagraphStyle()
+                paragraphStyle.headIndent = headIndent
+                paragraphStyle.firstLineHeadIndent = 0
+                textView.textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+            }
+
+            guard lineBounds.end < nsText.length else { break }
+            lineStart = lineBounds.end + 1
+        }
+
+        textView.textStorage.endEditing()
+        textView.selectedRange = NSRange(
+            location: min(selectedRange.location, textView.textStorage.length),
+            length: min(selectedRange.length, max(0, textView.textStorage.length - min(selectedRange.location, textView.textStorage.length)))
+        )
+        // Text typed right after a hidden dash must not inherit its clear color or gap.
+        textView.typingAttributes[.foregroundColor] = textView.textColor
+        textView.typingAttributes[.kern] = nil
+    }
 }
 
 // MARK: - UIGestureRecognizerDelegate (swipe-back support)
 
 extension NoteDetailViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer === checklistTapGesture else { return true }
+
+        let point = touch.location(in: textView)
+        guard let line = lineInfo(at: point),
+              let item = NoteListItem(line: line.text),
+              item.kind == .checklist else {
+            return false
+        }
+
+        let nsText = textView.text as NSString
+        let lineBounds = currentLineBounds(in: nsText, at: line.characterIndex)
+        guard let hitRect = checklistHitRect(for: lineBounds, item: item) else { return false }
+        return hitRect.contains(point)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === wordSelectionLongPressGesture || otherGestureRecognizer === wordSelectionLongPressGesture {
+            return false
+        }
+        return gestureRecognizer === checklistTapGesture
+            || otherGestureRecognizer === checklistTapGesture
+    }
+
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === checklistTapGesture { return true }
+        if gestureRecognizer === wordSelectionLongPressGesture { return true }
         // Allow swipe-back only when we're not at the root
         return navigationController?.viewControllers.count ?? 0 > 1
     }

@@ -222,9 +222,17 @@ final class NoteCell: UITableViewCell {
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         titleLabel.font = hasExplicitTitle ? PN.font(18, bold: true) : PN.font(14, bold: true)
         bodyLabel.font = PN.font(14, bold: true)
-        titleLabel.text = note.displayTitle
+        titleLabel.attributedText = checklistAttributedText(
+            note.displayTitle,
+            font: titleLabel.font,
+            color: .pnPrimary
+        )
         let previewBody = note.previewBody
-        bodyLabel.text = previewBody
+        bodyLabel.attributedText = checklistAttributedText(
+            previewBody,
+            font: bodyLabel.font,
+            color: .pnPrimary
+        )
         bodyLabel.isHidden = previewBody.isEmpty
 
         let pinned = note.isPinned
@@ -246,6 +254,62 @@ final class NoteCell: UITableViewCell {
         timerIcon.tintColor               = .pnPrimary
         selectionFill.backgroundColor     = .pnPrimary
         selectionRing.layer.borderColor   = UIColor.pnPrimary.cgColor
+    }
+
+    private func checklistAttributedText(_ text: String, font: UIFont, color: UIColor) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        let lines = text.components(separatedBy: "\n")
+
+        for (index, line) in lines.enumerated() {
+            if index > 0 {
+                result.append(NSAttributedString(string: "\n", attributes: [.font: font, .foregroundColor: color]))
+            }
+            result.append(checklistAttributedLine(line, font: font, color: color))
+        }
+
+        return result
+    }
+
+    private func checklistAttributedLine(_ line: String, font: UIFont, color: UIColor) -> NSAttributedString {
+        guard let item = NoteListItem(line: line), item.kind == .checklist else {
+            return NSAttributedString(string: line, attributes: [.font: font, .foregroundColor: color])
+        }
+
+        let attributed = NSMutableAttributedString(
+            string: String(item.indent),
+            attributes: [.font: font, .foregroundColor: color]
+        )
+        attributed.append(checklistAttachment(checked: item.isChecked, font: font, color: color))
+        attributed.append(NSAttributedString(string: "   \(item.text)", attributes: [.font: font, .foregroundColor: color]))
+        return attributed
+    }
+
+    private func checklistAttachment(checked: Bool, font: UIFont, color: UIColor) -> NSAttributedString {
+        let size = min(18, max(15, font.lineHeight - 2))
+        // The check flies out past the box's top-right corner, so the image has room there.
+        let overshoot = ceil(size * 0.15)
+        let attachment = NSTextAttachment()
+        attachment.image = drawChecklistImage(checked: checked, size: size, overshoot: overshoot, color: color)
+        attachment.bounds = CGRect(
+            x: 0,
+            y: (font.capHeight - size) / 2,
+            width: size + overshoot,
+            height: size + overshoot
+        )
+        return NSAttributedString(attachment: attachment)
+    }
+
+    private func drawChecklistImage(checked: Bool, size: CGFloat, overshoot: CGFloat, color: UIColor) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = UIScreen.main.scale
+        format.opaque = false
+
+        let canvas = CGSize(width: size + overshoot, height: size + overshoot)
+        return UIGraphicsImageRenderer(size: canvas, format: format).image { _ in
+            color.setFill()
+            let box = CGRect(x: 0, y: overshoot, width: size, height: size)
+            UIBezierPath(cgPath: HandDrawnCheckbox.path(in: box, checked: checked)).fill()
+        }
     }
 
     // MARK: - Edit mode

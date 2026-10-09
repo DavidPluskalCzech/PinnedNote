@@ -99,10 +99,7 @@ extension UIColor {
 // MARK: - Typography
 
 enum PN {
-    private static let regularName = "Noteworthy-Light"
-    private static let boldName    = "Noteworthy-Bold"
-
-    /// Languages where Noteworthy renders poorly — use system font instead.
+    /// Languages the bundled handwriting fonts don't cover — use system font instead.
     private static let systemFontLanguages: Set<String> = ["ja"]
 
     static func font(_ size: CGFloat, bold: Bool = false) -> UIFont {
@@ -112,10 +109,14 @@ enum PN {
                 ? .boldSystemFont(ofSize: size)
                 : .systemFont(ofSize: size, weight: .light)
         }
-        let name = bold ? boldName : regularName
-        return UIFont(name: name, size: size) ?? (bold
-            ? .boldSystemFont(ofSize: size)
-            : .systemFont(ofSize: size, weight: .light))
+        let appFont = ThemeManager.shared.font
+        guard let name = bold ? appFont.boldName : appFont.regularName,
+              let font = UIFont(name: name, size: size * appFont.sizeScale) else {
+            return bold
+                ? .boldSystemFont(ofSize: size)
+                : .systemFont(ofSize: size, weight: .light)
+        }
+        return font
     }
 
     static let hairline:     CGFloat = 1 / UIScreen.main.scale

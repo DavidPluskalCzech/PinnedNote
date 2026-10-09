@@ -22,6 +22,10 @@ final class LiveActivityManager {
             self, selector: #selector(themeChanged),
             name: .pnThemeChanged, object: nil
         )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(themeChanged),
+            name: .pnFontChanged, object: nil
+        )
     }
 
     private func refreshCachedActivity(preferredNoteID: String? = nil) {
@@ -150,7 +154,8 @@ final class LiveActivityManager {
             content:          note.content,
             modifiedAt:       note.modifiedAt,
             isBlossomTheme:   ThemeManager.shared.current == .blossom,
-            themeRawValue:    ThemeManager.shared.current.rawValue
+            themeRawValue:    ThemeManager.shared.current.rawValue,
+            fontRawValue: ThemeManager.shared.font.rawValue
         )
         let content = ActivityContent(state: state, staleDate: nil)
 
@@ -203,7 +208,8 @@ final class LiveActivityManager {
             content:        note.content,
             modifiedAt:     note.modifiedAt,
             isBlossomTheme: ThemeManager.shared.current == .blossom,
-            themeRawValue:  ThemeManager.shared.current.rawValue
+            themeRawValue:  ThemeManager.shared.current.rawValue,
+            fontRawValue: ThemeManager.shared.font.rawValue
         )
         let content = ActivityContent(state: state, staleDate: nil)
         let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "UpdatePinnedNote") {}

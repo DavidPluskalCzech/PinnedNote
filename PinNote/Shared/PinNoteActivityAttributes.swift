@@ -16,6 +16,12 @@ struct PinNoteActivityAttributes: ActivityAttributes {
         var modifiedAt: Date
         var isBlossomTheme: Bool
         var themeRawValue: String?
+        /// `AppFont` raw value; nil for activities started before fonts were selectable.
+        var fontRawValue: String? = nil
+
+        var appFont: AppFont {
+            AppFont(rawValue: fontRawValue ?? "") ?? .default
+        }
 
         var isDarkTheme: Bool {
             themeRawValue == "dark"
@@ -31,7 +37,7 @@ struct PinNoteActivityAttributes: ActivityAttributes {
                !noteTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return noteTitle
             }
-            return content
+            return displayContent
                 .components(separatedBy: "\n")
                 .first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
                 ?? "PinnedNote"
@@ -39,7 +45,7 @@ struct PinNoteActivityAttributes: ActivityAttributes {
 
         /// Full content preview for the lock screen banner (up to 9 lines)
         var fullPreview: String {
-            let lines = content
+            let lines = displayContent
                 .components(separatedBy: "\n")
                 .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
             if let noteTitle,
@@ -55,7 +61,7 @@ struct PinNoteActivityAttributes: ActivityAttributes {
 
         /// Body lines for the lock screen banner when a separate note title exists.
         var bannerBodyPreview: String {
-            content
+            displayContent
                 .components(separatedBy: "\n")
                 .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
                 .prefix(8)
@@ -64,10 +70,22 @@ struct PinNoteActivityAttributes: ActivityAttributes {
 
         /// Up to 4 lines of body text (Dynamic Island expanded)
         var bodyPreview: String {
-            let lines = content
+            let lines = displayContent
                 .components(separatedBy: "\n")
                 .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
             return (hasExplicitTitle ? lines.prefix(4) : lines.dropFirst().prefix(4)).joined(separator: "\n")
+        }
+
+        var displayContent: String {
+            content
+                .components(separatedBy: "\n")
+                .map(Self.normalizedChecklistLine)
+                .joined(separator: "\n")
+        }
+
+        private static func normalizedChecklistLine(_ line: String) -> String {
+            guard let item = NoteListItem(line: line), item.kind == .checklist else { return line }
+            return "\(item.indent)\(item.marker)  \(item.text)"
         }
     }
 }

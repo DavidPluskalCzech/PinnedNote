@@ -293,7 +293,10 @@ final class NoteDetailBottomBar: UIView {
     var onDelete: (() -> Void)?
     var onCopy:   (() -> Void)?
     var onSchedule: (() -> Void)?
+    var onChecklist: (() -> Void)?
     private var isScheduled = false
+    private let detailIconButtonWidth: CGFloat = 49
+    private let noteDetailPinPillWidth: CGFloat = 62
 
     private lazy var deleteButton: ToolbarButton = {
         let button = makeIconButton(systemName: "trash", tintColor: .pnDestructive)
@@ -301,7 +304,7 @@ final class NoteDetailBottomBar: UIView {
         button.addTarget(self, action: #selector(tapDelete), for: .primaryActionTriggered)
         NSLayoutConstraint.activate([
             button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
-            button.widthAnchor.constraint(equalToConstant: 57),
+            button.widthAnchor.constraint(equalToConstant: detailIconButtonWidth),
         ])
         return button
     }()
@@ -312,7 +315,7 @@ final class NoteDetailBottomBar: UIView {
         button.addTarget(self, action: #selector(pinTapped), for: .primaryActionTriggered)
         NSLayoutConstraint.activate([
             button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
-            button.widthAnchor.constraint(equalToConstant: 57),
+            button.widthAnchor.constraint(equalToConstant: detailIconButtonWidth),
         ])
         return button
     }()
@@ -323,7 +326,18 @@ final class NoteDetailBottomBar: UIView {
         button.addTarget(self, action: #selector(tapCopy), for: .primaryActionTriggered)
         NSLayoutConstraint.activate([
             button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
-            button.widthAnchor.constraint(equalToConstant: 57),
+            button.widthAnchor.constraint(equalToConstant: detailIconButtonWidth),
+        ])
+        return button
+    }()
+
+    private lazy var checklistButton: ToolbarButton = {
+        let button = makeIconButton(systemName: "checklist", tintColor: .pnPrimary)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(tapChecklist), for: .primaryActionTriggered)
+        NSLayoutConstraint.activate([
+            button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
+            button.widthAnchor.constraint(equalToConstant: detailIconButtonWidth),
         ])
         return button
     }()
@@ -334,7 +348,7 @@ final class NoteDetailBottomBar: UIView {
         button.addTarget(self, action: #selector(tapSchedule), for: .primaryActionTriggered)
         NSLayoutConstraint.activate([
             button.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
-            button.widthAnchor.constraint(equalToConstant: 57),
+            button.widthAnchor.constraint(equalToConstant: detailIconButtonWidth),
         ])
         return button
     }()
@@ -347,7 +361,7 @@ final class NoteDetailBottomBar: UIView {
         firstSpacer.translatesAutoresizingMaskIntoConstraints = false
         firstSpacer.widthAnchor.constraint(equalToConstant: 8).isActive = true
 
-        let buttonStack = UIStackView(arrangedSubviews: [deleteButton, firstSpacer, scheduleButton, copyButton])
+        let buttonStack = UIStackView(arrangedSubviews: [deleteButton, firstSpacer, scheduleButton, checklistButton, copyButton])
         buttonStack.axis = .horizontal
         buttonStack.alignment = .center
         buttonStack.spacing = 0
@@ -362,7 +376,7 @@ final class NoteDetailBottomBar: UIView {
             view.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
         ])
 
-        [deleteButton, scheduleButton, copyButton].forEach { button in
+        [deleteButton, scheduleButton, checklistButton, copyButton].forEach { button in
             addPressFeedback(to: button, targetView: view)
         }
 
@@ -378,7 +392,7 @@ final class NoteDetailBottomBar: UIView {
             pinButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             pinButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             view.heightAnchor.constraint(equalToConstant: PN.floatingControlHeight),
-            view.widthAnchor.constraint(equalToConstant: standaloneFloatingPillWidth),
+            view.widthAnchor.constraint(equalToConstant: noteDetailPinPillWidth),
         ])
 
         addPressFeedback(to: pinButton, targetView: view)
@@ -390,7 +404,7 @@ final class NoteDetailBottomBar: UIView {
         let stack = UIStackView(arrangedSubviews: [UIView(), detailBar, pinBar])
         stack.axis = .horizontal
         stack.alignment = .center
-        stack.spacing = 12
+        stack.spacing = 8
         return stack
     }()
 
@@ -434,12 +448,13 @@ final class NoteDetailBottomBar: UIView {
     func refreshColors() {
         applyFloatingStyle(to: detailBar)
         applyFloatingStyle(to: pinBar)
-        [deleteButton, scheduleButton, copyButton, pinButton].forEach { button in
+        [deleteButton, scheduleButton, checklistButton, copyButton, pinButton].forEach { button in
             button.backgroundColor = .clear
             button.layer.shadowOpacity = 0
         }
         deleteButton.tintColor = .pnDestructive
         scheduleButton.tintColor = .pnPrimary
+        checklistButton.tintColor = .pnPrimary
         copyButton.tintColor = .pnPrimary
         pinButton.tintColor = .pnPrimary
     }
@@ -516,5 +531,6 @@ final class NoteDetailBottomBar: UIView {
 
     @objc private func tapDelete() { onDelete?() }
     @objc private func tapSchedule() { onSchedule?() }
+    @objc private func tapChecklist() { onChecklist?() }
     @objc private func tapCopy() { onCopy?() }
 }

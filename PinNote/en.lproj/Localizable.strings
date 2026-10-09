@@ -63,6 +63,7 @@
 "settings_title" = "Settings";
 "settings_sync_header" = "Keep your notes safe";
 "settings_appearance_header" = "Appearance";
+"settings_fonts_header" = "Fonts";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "Upgrade";
 "settings_upgrade_footer" = "Monthly renews automatically. Lifetime is a one-time purchase.";

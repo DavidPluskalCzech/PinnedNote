@@ -41,3 +41,4 @@ struct PinNoteShortcuts: AppShortcutsProvider {
         )
     }
 }
+

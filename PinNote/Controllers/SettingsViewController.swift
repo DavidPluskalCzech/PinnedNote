@@ -23,6 +23,10 @@ final class SettingsViewController: UIViewController {
             name: .pnThemeChanged, object: nil
         )
         NotificationCenter.default.addObserver(
+            self, selector: #selector(themeUpdated),
+            name: .pnFontChanged, object: nil
+        )
+        NotificationCenter.default.addObserver(
             self, selector: #selector(purchaseErrorChanged),
             name: .pnPurchaseError, object: nil
         )
@@ -51,6 +55,7 @@ final class SettingsViewController: UIViewController {
         tableView.verticalScrollIndicatorInsets.bottom = 40
         tableView.register(UpgradeCardsCell.self,  forCellReuseIdentifier: UpgradeCardsCell.reuseID)
         tableView.register(ThemePickerCell.self,   forCellReuseIdentifier: ThemePickerCell.reuseID)
+        tableView.register(FontPickerCell.self,    forCellReuseIdentifier: FontPickerCell.reuseID)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
@@ -101,6 +106,8 @@ final class SettingsViewController: UIViewController {
         let didChange = NoteStore.shared.setICloudEnabled(sender.isOn)
         if !didChange {
             sender.setOn(NoteStore.shared.isICloudEnabled, animated: true)
+        } else if sender.isOn {
+            ThemeManager.shared.syncFontWithICloud()
         }
     }
 }
@@ -112,13 +119,13 @@ private extension SettingsViewController {
     var pm: PurchaseManager { PurchaseManager.shared }
 
     enum Section: Int, CaseIterable {
-        case sync, theme, status, upgrade, support
+        case sync, theme, font, status, upgrade, support
     }
 
     func visibleSections() -> [Section] {
         pm.isPro
-            ? [.sync, .theme, .status, .support]
-            : [.sync, .theme, .status, .upgrade, .support]
+            ? [.sync, .theme, .font, .status, .support]
+            : [.sync, .theme, .font, .status, .upgrade, .support]
     }
 
     func rowsInSupport() -> Int { 3 }  // restore + feedback + version
@@ -148,6 +155,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         switch visibleSections()[section] {
         case .sync:    return NSLocalizedString("settings_sync_header",       comment: "")
         case .theme:   return NSLocalizedString("settings_appearance_header", comment: "")
+        case .font:    return NSLocalizedString("settings_fonts_header",      comment: "")
         case .status:  return NSLocalizedString("settings_pro_header",        comment: "")
         case .upgrade: return nil
         case .support: return nil
@@ -190,6 +198,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         case .status where !pm.isPro: return 72
         case .upgrade:                return UITableView.automaticDimension
         case .theme:                  return 90
+        case .font:                   return 90
         default:                      return UITableView.automaticDimension
         }
     }
@@ -205,6 +214,14 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
                 withIdentifier: ThemePickerCell.reuseID, for: indexPath
             ) as! ThemePickerCell
             cell.onSelect = { theme in ThemeManager.shared.current = theme }
+            return cell
+
+        // ── Font ─────────────────────────────────────────────────────
+        case .font:
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: FontPickerCell.reuseID, for: indexPath
+            ) as! FontPickerCell
+            cell.onSelect = { font in ThemeManager.shared.setFont(font) }
             return cell
 
         // ── Pro status ───────────────────────────────────────────────
@@ -296,7 +313,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView,
                    shouldHighlightRowAt indexPath: IndexPath) -> Bool {
         let s = visibleSections()[indexPath.section]
-        return s != .upgrade && s != .theme
+        return s != .upgrade && s != .theme && s != .font
     }
 }
 
@@ -711,6 +728,136 @@ private final class ThemeCardView: UIView {
         checkmark.tintColor = theme.primaryColor
         layer.borderWidth   = selected ? 2 : 0
         layer.borderColor   = theme.primaryColor.cgColor
+    }
+
+    @objc private func tapped() {
+        UIView.animate(withDuration: 0.1, animations: {
+            self.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+        }, completion: { _ in
+            UIView.animate(withDuration: 0.1) { self.transform = .identity }
+            self.onTap?()
+        })
+    }
+}
+
+// MARK: - FontPickerCell
+
+private final class FontPickerCell: UITableViewCell {
+
+    static let reuseID = "FontPickerCell"
+
+    var onSelect: ((AppFont) -> Void)?
+
+    private var cards: [FontCardView] = []
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        backgroundColor             = .clear
+        contentView.backgroundColor = .clear
+        selectionStyle              = .none
+
+        cards = AppFont.allCases.map { font in
+            let card = FontCardView()
+            card.configure(font: font)
+            card.onTap = { [weak self] in self?.onSelect?(font) }
+            return card
+        }
+
+        // Same layout as ThemePickerCell, so the cards match the theme cards above.
+        let stack = UIStackView(arrangedSubviews: cards)
+        stack.axis         = .horizontal
+        stack.distribution = .fillEqually
+        stack.spacing      = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+        ])
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Theme changes reload the table, so colors and selection refresh here too.
+        cards.forEach { $0.refresh() }
+    }
+}
+
+// MARK: - FontCardView
+
+/// A rounded card previewing one font: "Aa" set in it and its name.
+private final class FontCardView: UIView {
+
+    var onTap: (() -> Void)?
+    private(set) var font: AppFont = .default
+
+    private let sampleLabel = UILabel()
+    private let nameLabel   = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+
+        layer.cornerRadius  = 12
+        layer.masksToBounds = true
+
+        sampleLabel.textAlignment = .center
+        sampleLabel.text          = "Aa"
+
+        nameLabel.font          = UIFont.systemFont(ofSize: 12, weight: .medium)
+        nameLabel.textAlignment = .center
+        nameLabel.adjustsFontSizeToFitWidth = true
+        nameLabel.minimumScaleFactor = 0.72
+
+        let stack = UIStackView(arrangedSubviews: [sampleLabel, nameLabel])
+        stack.axis      = .vertical
+        stack.alignment = .center
+        stack.spacing   = 2
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            // Fixed sample height: each font's "Aa" is a different height, and the
+            // names below should still line up across the cards.
+            sampleLabel.heightAnchor.constraint(equalToConstant: 28),
+            // Room for slanted glyphs (Caveat) that overhang their advance width.
+            sampleLabel.widthAnchor.constraint(equalToConstant: 56),
+
+            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+        ])
+
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func configure(font: AppFont) {
+        self.font = font
+        let size: CGFloat = 22
+        sampleLabel.font = font.boldName
+            .flatMap { UIFont(name: $0, size: size * font.sizeScale) }
+            ?? .boldSystemFont(ofSize: size)
+
+        switch font {
+        case .kalam:  nameLabel.text = "Kalam"
+        case .system: nameLabel.text = "SF Pro"
+        case .caveat: nameLabel.text = "Caveat"
+        }
+        refresh()
+    }
+
+    func refresh() {
+        let selected = ThemeManager.shared.font == font
+        backgroundColor       = .pnSurface
+        sampleLabel.textColor = .pnPrimary
+        nameLabel.textColor   = .pnPrimary
+        layer.borderWidth     = selected ? 2 : 0
+        layer.borderColor     = UIColor.pnPrimary.cgColor
     }
 
     @objc private func tapped() {
