@@ -102,6 +102,17 @@ enum PN {
     /// Languages the bundled handwriting fonts don't cover — use system font instead.
     private static let systemFontLanguages: Set<String> = ["ja"]
 
+    /// Extra weight for note titles. Kalam's and Caveat's heaviest face is Bold, so
+    /// titles get a stroke in their own colour on top (as the PinnedNote wordmark
+    /// does); SF Pro is left as it is.
+    static func titleWeightAttributes(color: UIColor) -> [NSAttributedString.Key: Any] {
+        switch ThemeManager.shared.font {
+        case .kalam:  return [.strokeColor: color, .strokeWidth: -2.6]
+        case .caveat: return [.strokeColor: color, .strokeWidth: -2.6]
+        case .system: return [.strokeWidth: 0]
+        }
+    }
+
     static func font(_ size: CGFloat, bold: Bool = false) -> UIFont {
         let lang = Locale.current.language.languageCode?.identifier ?? ""
         if systemFontLanguages.contains(lang) {

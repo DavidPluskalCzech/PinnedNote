@@ -18,6 +18,10 @@ final class NoteListViewController: UIViewController {
     // MARK: - State
 
     private var isInEditMode = false
+    /// The notes land on the canvas once, when the app opens.
+    private var hasPlayedLanding = false
+    /// Until the user scrolls, the grid is held at its top, below the header.
+    private var hasUserScrolled = false
     private var selectedIDs  = Set<UUID>()
     private var cancellables = Set<AnyCancellable>()
 
@@ -70,7 +74,45 @@ final class NoteListViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        if !hasPlayedLanding {
+            hasPlayedLanding = true
+            playLanding()
+        }
         wakeCatSoon()
+    }
+
+    // MARK: - Landing
+
+    /// Everything that fades in, in place, as the notes land.
+    private var landingChrome: [UIView] { [titleLabel, catView, bottomBar, trialBanner, emptyState] }
+
+    /// The canvas starts completely empty: title, cat, controls and the visible
+    /// notes are all hidden until the landing.
+    private func prepareLanding() {
+        view.layoutIfNeeded()
+        scrollGridToTop()
+        landingChrome.forEach { $0.alpha = 0 }
+        collectionView.layoutIfNeeded()
+        collectionView.visibleCells.compactMap { $0 as? NoteCell }.forEach { $0.prepareToLand() }
+    }
+
+    /// Notes drop onto the canvas one after another, top to bottom, while the title,
+    /// cat and controls fade in where they are.
+    private func playLanding() {
+        UIView.animate(withDuration: 1.0, delay: 0.4, options: [.curveEaseInOut, .allowUserInteraction]) {
+            self.landingChrome.forEach { $0.alpha = 1 }
+        }
+        let cells = collectionView.indexPathsForVisibleItems
+            .sorted { lhs, rhs in
+                let a = collectionView.layoutAttributesForItem(at: lhs)?.frame ?? .zero
+                let b = collectionView.layoutAttributesForItem(at: rhs)?.frame ?? .zero
+                return a.minY != b.minY ? a.minY < b.minY : a.minX < b.minX
+            }
+            .compactMap { collectionView.cellForItem(at: $0) as? NoteCell }
+        for (index, cell) in cells.enumerated() {
+            // A moment of empty canvas first, then one note after another.
+            cell.land(after: 0.4 + Double(index) * 0.14)
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -79,6 +121,7 @@ final class NoteListViewController: UIViewController {
         displayedIDs = NoteStore.shared.notes.map { $0.id }
         collectionView.reloadData()
         refreshEmptyState()
+        if !hasPlayedLanding { prepareLanding() }
     }
 
     // MARK: - Build layout
@@ -87,7 +130,7 @@ final class NoteListViewController: UIViewController {
         let readableGuide = view.pnAddReadableContentGuide()
 
         // Title — negative stroke width fills the stroke, making the glyphs heavier
-        let titleFont = UIFont(name: "BradleyHandITCTT-Bold", size: 44) ?? PN.font(44, bold: true)
+        let titleFont = UIFont(name: "BradleyHandITCTT-Bold", size: 46) ?? PN.font(46, bold: true)
         titleLabel.attributedText = NSAttributedString(string: "PinnedNote", attributes: [
             .font:        titleFont,
             .foregroundColor: UIColor.pnPrimary,
@@ -185,6 +228,16 @@ final class NoteListViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         headerFadeLayer.frame = headerFadeView.bounds
+        if !hasUserScrolled { scrollGridToTop() }
+    }
+
+    /// The top of the grid just below the header, clear of its fade. The insets
+    /// settle only after the first layout passes, so this runs again until the user
+    /// takes over by scrolling.
+    private func scrollGridToTop() {
+        let top = -collectionView.adjustedContentInset.top
+        guard collectionView.contentOffset.y != top else { return }
+        collectionView.contentOffset = CGPoint(x: collectionView.contentOffset.x, y: top)
     }
 
     // MARK: - Bottom bar wiring
@@ -531,7 +584,7 @@ final class NoteListViewController: UIViewController {
         trialBanner.refreshColors()
         emptyState.refreshColors()
         catView.applyColors()
-        let titleFont = UIFont(name: "BradleyHandITCTT-Bold", size: 44) ?? PN.font(44, bold: true)
+        let titleFont = UIFont(name: "BradleyHandITCTT-Bold", size: 46) ?? PN.font(46, bold: true)
         titleLabel.attributedText = NSAttributedString(string: "PinnedNote", attributes: [
             .font:        titleFont,
             .foregroundColor: UIColor.pnPrimary,
@@ -671,6 +724,10 @@ extension NoteListViewController: MasonryLayoutDelegate {
 // MARK: - UICollectionViewDelegate
 
 extension NoteListViewController: UICollectionViewDelegate {
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        hasUserScrolled = true
+    }
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         collectionView.deselectItem(at: indexPath, animated: false)

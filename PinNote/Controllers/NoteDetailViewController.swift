@@ -228,8 +228,9 @@ final class NoteDetailViewController: UIViewController {
         titleTapArea.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleTapArea)
 
-        titleField.font = PN.font(22, bold: true)
+        titleField.font = PN.font(24, bold: true)
         titleField.textColor = .pnPrimary
+        applyTitleWeight()
         titleField.tintColor = .pnTextSelection
         titleField.borderStyle = .none
         titleField.clearButtonMode = .never
@@ -297,7 +298,9 @@ final class NoteDetailViewController: UIViewController {
         textView.tintColor           = .pnTextSelection
         textView.keyboardAppearance  = ThemeManager.shared.current == .dark ? .dark : .light
         textView.textContainerInset  = UIEdgeInsets(
-            top: 14,
+            // Room for the header fade: the text starts just below it, and scrolls up
+            // underneath it (as the note list does).
+            top: 40,
             left: PN.padding - 4,
             bottom: textViewBaseBottomInset,
             right: PN.padding
@@ -329,7 +332,6 @@ final class NoteDetailViewController: UIViewController {
         textView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(textView)
         NSLayoutConstraint.activate([
-            textView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 74),
             textView.leadingAnchor.constraint(equalTo: readableGuide.leadingAnchor),
             textView.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor),
             textView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -346,9 +348,12 @@ final class NoteDetailViewController: UIViewController {
         view.addSubview(headerFadeView)
         NSLayoutConstraint.activate([
             headerFadeView.topAnchor.constraint(equalTo: titleField.bottomAnchor, constant: -4),
-            headerFadeView.leadingAnchor.constraint(equalTo: readableGuide.leadingAnchor),
-            headerFadeView.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor),
+            headerFadeView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            headerFadeView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             headerFadeView.heightAnchor.constraint(equalToConstant: 50),
+            // The text scrolls from the top of the fade, so it passes under it
+            // smoothly instead of being cut off at a hard edge.
+            textView.topAnchor.constraint(equalTo: headerFadeView.topAnchor),
         ])
         refreshHeaderFade()
         view.bringSubviewToFront(backButton)
@@ -428,8 +433,17 @@ final class NoteDetailViewController: UIViewController {
 
     // MARK: - Actions
 
+    /// Heavier title lettering where the font calls for it (see `PN.titleWeightAttributes`).
+    private func applyTitleWeight() {
+        var attributes = titleField.defaultTextAttributes
+        attributes.removeValue(forKey: .strokeColor)
+        attributes.merge(PN.titleWeightAttributes(color: .pnPrimary)) { $1 }
+        titleField.defaultTextAttributes = attributes
+    }
+
     @objc private func applyFont() {
-        titleField.font = PN.font(22, bold: true)
+        titleField.font = PN.font(24, bold: true)
+        applyTitleWeight()
         textView.font   = PN.font(17, bold: true)
         updateTitlePlaceholder()
         applyListParagraphStyles()
@@ -441,6 +455,7 @@ final class NoteDetailViewController: UIViewController {
         view.backgroundColor     = .pnBackground
         titleField.textColor     = .pnPrimary
         titleField.tintColor     = .pnTextSelection
+        applyTitleWeight()
         textView.textColor       = .pnPrimary
         textView.tintColor       = .pnTextSelection
         textView.keyboardAppearance = ThemeManager.shared.current == .dark ? .dark : .light
@@ -493,7 +508,7 @@ final class NoteDetailViewController: UIViewController {
             string: NSLocalizedString("detail_title_placeholder", comment: ""),
             attributes: [
                 .foregroundColor: UIColor.pnSecondary.withAlphaComponent(0.45),
-                .font: PN.font(22, bold: true),
+                .font: PN.font(24, bold: true),
             ]
         )
     }
@@ -863,6 +878,13 @@ final class NoteDetailViewController: UIViewController {
         min(22, max(18, (textView.font?.lineHeight ?? 22) - 3))
     }
 
+    private var bulletDotDiameter: CGFloat {
+        max(5, round((textView.font ?? PN.font(17, bold: true)).lineHeight * 0.2))
+    }
+
+    /// The bullet dot's distance from the start of its line (after any indent).
+    private var bulletDotInset: CGFloat { 9 }
+
     /// Space between a list marker (checkbox or bullet dot) and the item text.
     private var listMarkerGap: CGFloat {
         round(checkboxSize * 0.85)
@@ -881,7 +903,7 @@ final class NoteDetailViewController: UIViewController {
         let font = textView.font ?? PN.font(17, bold: true)
         let lineFragment = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
         let dashOrigin = layoutManager.location(forGlyphAt: glyphIndex)
-        let diameter = max(5, round(font.lineHeight * 0.2))
+        let diameter = bulletDotDiameter
 
         let rightEdge: CGFloat
         if item.prefixLength > item.markerOffset + 1 {
@@ -1079,7 +1101,7 @@ extension NoteDetailViewController: UITextFieldDelegate {
 
 extension NoteDetailViewController: UITextViewDelegate {
 
-    private var bulletPrefix: String { "  - " }
+    private var bulletPrefix: String { "- " }
     private var uncheckedChecklistPrefix: String { "  \(NoteListItem.uncheckedMarker)    " }
     private var checkedChecklistPrefix: String { "  \(NoteListItem.checkedMarker)    " }
     private var uncheckedChecklistPrefixLength: Int { (uncheckedChecklistPrefix as NSString).length }
@@ -1324,12 +1346,15 @@ extension NoteDetailViewController: UITextViewDelegate {
         func width(_ string: String) -> CGFloat {
             (string as NSString).size(withAttributes: [.font: font]).width
         }
-        // Item text starts one marker gap after the checkbox (drawn 1pt after the
-        // marker glyph). Bullets use the standard indent, so mixed lists share a column.
+        // Item text starts one marker gap after its marker: after the checkbox (drawn
+        // 1pt after the marker glyph), or after the bullet dot, which sits right at
+        // the start of the line.
         func textColumn(indent: Substring) -> CGFloat {
             ceil(width(String(indent)) + 1 + checkboxSize + listMarkerGap)
         }
-        let bulletTextColumn = textColumn(indent: "  ")
+        func bulletTextColumn(indent: Substring) -> CGFloat {
+            ceil(width(String(indent)) + bulletDotInset + bulletDotDiameter + listMarkerGap)
+        }
 
         textView.textStorage.beginEditing()
         textView.textStorage.removeAttribute(.paragraphStyle, range: fullRange)
@@ -1358,7 +1383,9 @@ extension NoteDetailViewController: UITextViewDelegate {
                     // Widen the space after the marker into one gap instead of padding
                     // with more spaces. The kern sits on the marker, so text typed after
                     // the prefix never inherits it.
-                    let column = item.kind == .bullet ? bulletTextColumn : textColumn(indent: item.indent)
+                    let column = item.kind == .bullet
+                        ? bulletTextColumn(indent: item.indent)
+                        : textColumn(indent: item.indent)
                     let natural = width(prefix)
                     let extra = max(0, column - natural)
                     textView.textStorage.addAttribute(

@@ -182,6 +182,10 @@ final class NoteCell: UICollectionViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         paperView.transform = .identity
+        // A cell reused mid-landing must not stay hidden.
+        contentView.layer.removeAllAnimations()
+        contentView.alpha = 1
+        contentView.transform = .identity
     }
 
     /// Redraws the torn outline, fibre rim and shadow for the paper's current size.
@@ -213,13 +217,18 @@ final class NoteCell: UICollectionViewCell {
         cardView.setNeedsLayout()
 
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        titleLabel.font = hasExplicitTitle ? PN.font(18, bold: true) : PN.font(14, bold: true)
+        titleLabel.font = hasExplicitTitle ? PN.font(20, bold: true) : PN.font(14, bold: true)
         bodyLabel.font = PN.font(14, bold: true)
-        titleLabel.attributedText = checklistAttributedText(
+        let title = NSMutableAttributedString(attributedString: checklistAttributedText(
             note.displayTitle,
             font: titleLabel.font,
             color: .pnPrimary
-        )
+        ))
+        if hasExplicitTitle {
+            title.addAttributes(PN.titleWeightAttributes(color: .pnPrimary),
+                                range: NSRange(location: 0, length: title.length))
+        }
+        titleLabel.attributedText = title
         let previewBody = note.previewBody(maxLines: Self.maxBodyLines)
         bodyLabel.attributedText = checklistAttributedText(
             previewBody,
@@ -403,6 +412,31 @@ final class NoteCell: UICollectionViewCell {
             color.setFill()
             let box = CGRect(x: 0, y: overshoot, width: size, height: size)
             UIBezierPath(cgPath: HandDrawnCheckbox.path(in: box, checked: checked)).fill()
+        }
+    }
+
+    // MARK: - Landing
+
+    /// Hidden, ready to land (see `land(after:)`).
+    func prepareToLand() {
+        contentView.alpha = 0
+        contentView.transform = CGAffineTransform(translationX: 0, y: -14).scaledBy(x: 1.04, y: 1.04)
+    }
+
+    /// Settles onto the canvas like a sheet of paper floating down onto a desk:
+    /// fades in while drifting down and easing to rest, without a bounce.
+    func land(after delay: TimeInterval) {
+        UIView.animate(withDuration: 0.55, delay: delay, options: [.curveEaseOut, .allowUserInteraction]) {
+            self.contentView.alpha = 1
+        }
+        UIView.animate(
+            withDuration: 1.1,
+            delay: delay,
+            usingSpringWithDamping: 1,
+            initialSpringVelocity: 0,
+            options: [.allowUserInteraction]
+        ) {
+            self.contentView.transform = .identity
         }
     }
 

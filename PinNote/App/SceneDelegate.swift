@@ -12,13 +12,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        // Always show splash first — it decides whether to go to onboarding or main
         _ = NoteStore.shared
         ScheduledPinManager.shared.start()
 
+        // Straight into the app: onboarding the first time, otherwise the note list,
+        // whose notes land on the empty canvas as it appears.
         let window = UIWindow(windowScene: windowScene)
         window.backgroundColor = .pnBackground
-        window.rootViewController = SplashViewController()
+        window.rootViewController = makeRootViewController()
 
         window.overrideUserInterfaceStyle = ThemeManager.shared.current.interfaceStyle
         window.makeKeyAndVisible()
@@ -89,6 +90,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             }
             NotificationCenter.default.post(name: .pnOpenNote, object: nil, userInfo: ["noteID": noteID])
         }
+    }
+
+    private func makeRootViewController() -> UIViewController {
+        guard UserDefaults.standard.bool(forKey: "pnHasSeenOnboarding") else {
+            return OnboardingViewController()
+        }
+        let nav = UINavigationController(rootViewController: NoteListViewController())
+        nav.setNavigationBarHidden(true, animated: false)
+        return nav
     }
 
     func openPendingNewNoteIfPossible() {

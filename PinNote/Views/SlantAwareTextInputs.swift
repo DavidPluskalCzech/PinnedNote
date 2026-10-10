@@ -67,15 +67,17 @@ final class NoteTextView: UITextView {
     }
 }
 
-/// The note title field, with the caret kept clear of slanted letters.
+/// The note title field. Its caret is trimmed to the letters' height: the full line
+/// height of the handwriting fonts makes a very tall caret. (It isn't moved past
+/// slanted letters like the body's: the field clips just after the last letter,
+/// which would hide it.)
 final class NoteTitleField: UITextField {
     override func caretRect(for position: UITextPosition) -> CGRect {
-        GlyphOverhang.adjustedCaretRect(
-            super.caretRect(for: position),
-            for: position,
-            in: self,
-            caretRectFor: { super.caretRect(for: $0) },
-            fontAt: { [unowned self] _ in self.font }
-        )
+        let rect = super.caretRect(for: position)
+        guard let font, rect.height > 0 else { return rect }
+        let baseline = rect.maxY + font.descender
+        let top = baseline - font.capHeight - 3
+        let bottom = baseline - font.descender * 0.4
+        return CGRect(x: rect.minX, y: top, width: rect.width, height: bottom - top)
     }
 }

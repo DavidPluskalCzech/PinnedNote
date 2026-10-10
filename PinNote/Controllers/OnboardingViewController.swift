@@ -289,8 +289,8 @@ final class OnboardingViewController: UIViewController {
         para.alignment   = .center
         para.lineSpacing = 2
 
-        let pinnedNoteFont = UIFont(name: "BradleyHandITCTT-Bold", size: 36)
-                          ?? UIFont.systemFont(ofSize: 36, weight: .bold)
+        let pinnedNoteFont = UIFont(name: "BradleyHandITCTT-Bold", size: 38)
+                          ?? UIFont.systemFont(ofSize: 38, weight: .bold)
 
         let attr = NSMutableAttributedString()
         attr.append(NSAttributedString(
