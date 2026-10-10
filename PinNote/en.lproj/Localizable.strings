@@ -20,13 +20,14 @@
 "ob_seven_days_free" = "14 Days Free";
 "ob_coffee_body" = "Built by one person — for you. If it becomes part of your day, a one coffee helps keep it going";
 "ob_continue" = "Continue";
+"ob_demo_video" = "Writing a note from the Lock Screen and pinning it";
+"ob_step_idea" = "Get idea";
+"ob_step_write" = "Write";
+"ob_step_pin" = "Pin";
+"ob_step_just_like_that" = "...just like that!";
+"ob_step_cat_note" = "This little cat will be your company while you organize your thoughts. She might blink, stretch, or take a nap. She’s just happy to be there.";
+"ob_cat_video" = "A little grey cat sitting and looking around";
 "ob_get_started" = "Get Started";
-"ob_capture_ideas_title" = "Capture your ideas";
-"ob_capture_ideas_body" = "PinnedNote is ready whenever\nyour idea emerge";
-"ob_pin_lock_title" = "Pin to Lock Screen";
-"ob_pin_lock_body" = "Keep the important notes in sight";
-"ob_write_now_title" = "Write immediately";
-"ob_write_now_body" = "Write down your ideas directly\nfrom the Lock Screen";
 
 /* Note List */
 "list_trial_ended_banner" = "Your free trial has ended.";
@@ -37,6 +38,7 @@
 "list_cancel" = "Cancel";
 "list_no_notes" = "No notes yet?";
 "list_write_first" = "Write your first one";
+"list_hint_close" = "Close";
 "pin_toast_pinned" = "Pinned to Lock Screen";
 "pin_toast_unpinned" = "Unpinned from Lock Screen";
 "list_menu_pin" = "Pin to lock screen";

@@ -1,3 +1,4 @@
+import AVFoundation
 import UIKit
 
 private enum OnboardingPalette {
@@ -21,7 +22,10 @@ final class OnboardingViewController: UIViewController {
              title:  "",   // page 0 uses attributedWelcomeTitle — field unused
              body:   NSLocalizedString("ob_capture_thoughts", comment: "")),
         Page(symbol: nil,
-             title:  "",   // page 1 uses fully custom layout — fields unused
+             title:  "",   // page 1 shows the demo video — fields unused
+             body:   ""),
+        Page(symbol: nil,
+             title:  "",   // page 2 shows the three steps — fields unused
              body:   ""),
         Page(symbol: nil,
              title:  NSLocalizedString("ob_seven_days_free", comment: ""),
@@ -35,26 +39,26 @@ final class OnboardingViewController: UIViewController {
     private let bodyLabel    = UILabel()
     private let pageControl   = UIPageControl()
     private let actionButton  = UIButton(type: .system)
-    private let coffeeIconView = UIImageView()  // shown only on page 2
+    private let coffeeIconView = UIImageView()  // shown only on the last page
+    private let coffeeCatVideo = OnboardingVideoView(resource: "onboarding-cat", extension: "mp4",
+                                                     aspectRatio: 282.0 / 222.0, framedLikePhone: false)
     private var iconCenterYConstraint: NSLayoutConstraint?
 
-    // MARK: - Page 1 custom layout
+    // MARK: - Page 1: demo video
 
     private let page1Container = UIView()
+    private let demoVideo = OnboardingVideoView(resource: "onboarding-demo", extension: "mp4",
+                                                aspectRatio: 630.0 / 1276.0, framedLikePhone: true)
 
-    // Three independently animated sections
-    private let p1Section1 = UIView()   // header: "Capture your ideas"
-    private let p1Section2 = UIView()   // image 1 + pin text
-    private let p1Section3 = UIView()   // image 2 + write text
+    // MARK: - Page 2: idea, write, pin
 
-    private let p1HeaderTitle = UILabel()
-    private let p1HeaderBody  = UILabel()
-    private let p1PinTitle    = UILabel()
-    private let p1PinBody     = UILabel()
-    private let p1WriteTitle  = UILabel()
-    private let p1WriteBody   = UILabel()
-    private let p1PinImage    = UIImageView()
-    private let p1WriteImage  = UIImageView()
+    private let stepsContainer = UIView()
+    private var stepDots: [UIView] = []
+    private var stepLabels: [UILabel] = []
+    private let justLikeThatLabel = UILabel()
+    private let catNoteLabel = UILabel()
+    private let catVideo = OnboardingVideoView(resource: "onboarding-cat", extension: "mp4",
+                                               aspectRatio: 282.0 / 222.0, framedLikePhone: false)
 
     // MARK: -
 
@@ -68,6 +72,7 @@ final class OnboardingViewController: UIViewController {
         view.backgroundColor = OnboardingPalette.background
         setupSharedViews()
         setupPage1Views()
+        setupStepsViews()
         setupGestures()
         showPage(0, animated: false)
     }
@@ -111,14 +116,20 @@ final class OnboardingViewController: UIViewController {
         actionButton.translatesAutoresizingMaskIntoConstraints = false
         actionButton.addTarget(self, action: #selector(actionTapped), for: .touchUpInside)
 
-        let cfg2 = UIImage.SymbolConfiguration(pointSize: 52, weight: .thin)
-        coffeeIconView.image       = UIImage(systemName: "cup.and.heat.waves.fill", withConfiguration: cfg2)
+        let cfg2 = UIImage.SymbolConfiguration(pointSize: 40, weight: .thin)
+        coffeeIconView.image       = UIImage(systemName: "cup.and.saucer.fill", withConfiguration: cfg2)
         coffeeIconView.tintColor   = OnboardingPalette.primary
         coffeeIconView.contentMode = .scaleAspectFit
         coffeeIconView.alpha       = 0
+
+        coffeeCatVideo.accessibilityLabel = NSLocalizedString("ob_cat_video", comment: "")
+        coffeeCatVideo.alpha = 0
+        coffeeCatVideo.translatesAutoresizingMaskIntoConstraints = false
         coffeeIconView.translatesAutoresizingMaskIntoConstraints = false
 
         [iconView, titleLabel, bodyLabel, coffeeIconView, pageControl, actionButton].forEach { view.addSubview($0) }
+        // Beneath everything: the video's empty margins mustn't cover the cup or the text.
+        view.insertSubview(coffeeCatVideo, at: 0)
 
         let iconCY = iconView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -110)
         iconCenterYConstraint = iconCY
@@ -137,10 +148,17 @@ final class OnboardingViewController: UIViewController {
             bodyLabel.leadingAnchor.constraint(equalTo: contentGuide.leadingAnchor, constant: 40),
             bodyLabel.trailingAnchor.constraint(equalTo: contentGuide.trailingAnchor, constant: -40),
 
-            coffeeIconView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            coffeeIconView.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 36),
-            coffeeIconView.widthAnchor.constraint(equalToConstant: 60),
-            coffeeIconView.heightAnchor.constraint(equalToConstant: 60),
+            // The cup and the cat side by side, centred as a pair.
+            coffeeIconView.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: -52),
+            coffeeIconView.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 44),
+            coffeeIconView.heightAnchor.constraint(equalToConstant: 56),
+
+            // The video has room around the cat: its tail starts ~35pt in, its paws ~6pt above the bottom; the cup sits a little lower.
+            coffeeCatVideo.leadingAnchor.constraint(equalTo: view.centerXAnchor, constant: -40),
+            coffeeCatVideo.bottomAnchor.constraint(equalTo: coffeeIconView.bottomAnchor, constant: -2),
+            coffeeCatVideo.widthAnchor.constraint(equalToConstant: 141),
+            coffeeCatVideo.heightAnchor.constraint(equalTo: coffeeCatVideo.widthAnchor,
+                                                   multiplier: 1 / coffeeCatVideo.aspectRatio),
 
             actionButton.leadingAnchor.constraint(equalTo: buttonGuide.leadingAnchor, constant: 24),
             actionButton.trailingAnchor.constraint(equalTo: buttonGuide.trailingAnchor, constant: -24),
@@ -163,111 +181,111 @@ final class OnboardingViewController: UIViewController {
         view.addSubview(page1Container)
 
         NSLayoutConstraint.activate([
-            page1Container.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 50),
-            page1Container.leadingAnchor.constraint(equalTo: contentGuide.leadingAnchor, constant: 28),
-            page1Container.trailingAnchor.constraint(equalTo: contentGuide.trailingAnchor, constant: -28),
-            page1Container.bottomAnchor.constraint(equalTo: pageControl.topAnchor, constant: -16),
+            page1Container.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            page1Container.leadingAnchor.constraint(equalTo: contentGuide.leadingAnchor, constant: 16),
+            page1Container.trailingAnchor.constraint(equalTo: contentGuide.trailingAnchor, constant: -16),
+            page1Container.bottomAnchor.constraint(equalTo: pageControl.topAnchor, constant: -10),
         ])
 
-        // Labels — titles
-        for lbl in [p1HeaderTitle, p1PinTitle, p1WriteTitle] {
-            lbl.font          = Self.onboardingFont(size: 22)
-            lbl.textColor     = OnboardingPalette.primary
-            lbl.numberOfLines = 2
-            lbl.textAlignment = .center
-        }
-
-        // Labels — bodies
-        for lbl in [p1HeaderBody, p1PinBody, p1WriteBody] {
-            lbl.font          = Self.onboardingFont(size: 16)
-            lbl.textColor     = OnboardingPalette.secondary
-            lbl.numberOfLines = 3
-            lbl.textAlignment = .center
-        }
-
-        p1HeaderTitle.text = NSLocalizedString("ob_capture_ideas_title", comment: "")
-        p1HeaderBody.text  = NSLocalizedString("ob_capture_ideas_body",  comment: "")
-        p1PinTitle.text    = NSLocalizedString("ob_pin_lock_title",       comment: "")
-        p1PinBody.text     = NSLocalizedString("ob_pin_lock_body",        comment: "")
-        p1WriteTitle.text  = NSLocalizedString("ob_write_now_title",      comment: "")
-        p1WriteBody.text   = NSLocalizedString("ob_write_now_body",       comment: "")
-
-        // Images
-        // ⚠️ Add images named "ob_lockscreen_pin" and "ob_lockscreen_write" to Assets.xcassets
-        for imgView in [p1PinImage, p1WriteImage] {
-            imgView.contentMode        = .scaleAspectFit
-            imgView.clipsToBounds      = true
-            imgView.layer.cornerRadius = 0
-            imgView.backgroundColor    = .clear
-            imgView.translatesAutoresizingMaskIntoConstraints = false
-            imgView.heightAnchor.constraint(equalToConstant: 150).isActive = true
-        }
-        p1PinImage.image   = UIImage(named: "ob_lockscreen_pin")
-        p1WriteImage.image = UIImage(named: "ob_lockscreen_write")
-
-        // Build section 1: header text (centered)
-        let headerStack = makeVStack([p1HeaderTitle, p1HeaderBody], spacing: 8)
-        headerStack.alignment = .center
-
-        // Build section 2: text on top, image below (centered)
-        let pinText  = makeVStack([p1PinTitle, p1PinBody], spacing: 6)
-        pinText.alignment = .center
-        let pinRow   = makeVStack([pinText, p1PinImage], spacing: 12)
-        pinRow.alignment  = .fill
-
-        // Build section 3: text on top, image below (centered)
-        let writeText = makeVStack([p1WriteTitle, p1WriteBody], spacing: 6)
-        writeText.alignment = .center
-        let writeRow  = makeVStack([writeText, p1WriteImage], spacing: 12)
-        writeRow.alignment  = .fill
-
-        // Wrap each in a section container (animated independently)
-        embedInSection(headerStack, into: p1Section1)
-        embedInSection(pinRow,      into: p1Section2)
-        embedInSection(writeRow,    into: p1Section3)
-
-        // Main vertical stack distributed evenly in container
-        let mainStack = UIStackView(arrangedSubviews: [p1Section1, p1Section2, p1Section3])
-        mainStack.axis         = .vertical
-        mainStack.distribution = .equalSpacing
-        mainStack.translatesAutoresizingMaskIntoConstraints = false
-        page1Container.addSubview(mainStack)
-
+        // The demo video, as large as fits, with the proportions of a phone screen.
+        demoVideo.translatesAutoresizingMaskIntoConstraints = false
+        page1Container.addSubview(demoVideo)
+        let fill = demoVideo.heightAnchor.constraint(equalTo: page1Container.heightAnchor)
+        fill.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            mainStack.topAnchor.constraint(equalTo: page1Container.topAnchor),
-            mainStack.bottomAnchor.constraint(equalTo: page1Container.bottomAnchor),
-            mainStack.leadingAnchor.constraint(equalTo: page1Container.leadingAnchor),
-            mainStack.trailingAnchor.constraint(equalTo: page1Container.trailingAnchor),
+            demoVideo.centerXAnchor.constraint(equalTo: page1Container.centerXAnchor),
+            demoVideo.centerYAnchor.constraint(equalTo: page1Container.centerYAnchor),
+            demoVideo.widthAnchor.constraint(equalTo: demoVideo.heightAnchor, multiplier: demoVideo.aspectRatio),
+            demoVideo.heightAnchor.constraint(lessThanOrEqualTo: page1Container.heightAnchor),
+            demoVideo.widthAnchor.constraint(lessThanOrEqualTo: page1Container.widthAnchor),
+            fill,
         ])
     }
 
-    // MARK: - Stack helpers
+    // MARK: - Layout: page 2
 
-    private func makeVStack(_ views: [UIView], spacing: CGFloat) -> UIStackView {
-        let s = UIStackView(arrangedSubviews: views)
-        s.axis    = .vertical
-        s.spacing = spacing
-        return s
-    }
+    private func setupStepsViews() {
+        stepsContainer.isHidden = true
+        stepsContainer.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stepsContainer)
 
-    private func makeHStack(_ views: [UIView], spacing: CGFloat) -> UIStackView {
-        let s = UIStackView(arrangedSubviews: views)
-        s.axis      = .horizontal
-        s.spacing   = spacing
-        s.alignment = .center
-        return s
-    }
+        let rows = UIStackView()
+        rows.axis = .vertical
+        rows.alignment = .leading
+        rows.spacing = 2
+        rows.translatesAutoresizingMaskIntoConstraints = false
+        stepsContainer.addSubview(rows)
 
-    private func embedInSection(_ content: UIView, into section: UIView) {
-        section.backgroundColor = .clear
-        section.translatesAutoresizingMaskIntoConstraints = false
-        content.translatesAutoresizingMaskIntoConstraints = false
-        section.addSubview(content)
+        for key in ["ob_step_idea", "ob_step_write", "ob_step_pin"] {
+            let dot = UIView()
+            dot.backgroundColor = OnboardingPalette.primary
+            dot.layer.cornerRadius = 7
+            dot.translatesAutoresizingMaskIntoConstraints = false
+
+            let label = UILabel()
+            label.text = NSLocalizedString(key, comment: "")
+            label.font = Self.appFont(size: 36, bold: true)
+            label.textColor = OnboardingPalette.primary
+            label.translatesAutoresizingMaskIntoConstraints = false
+
+            let row = UIView()
+            row.addSubview(dot)
+            row.addSubview(label)
+            NSLayoutConstraint.activate([
+                dot.widthAnchor.constraint(equalToConstant: 14),
+                dot.heightAnchor.constraint(equalToConstant: 14),
+                dot.leadingAnchor.constraint(equalTo: row.leadingAnchor),
+                dot.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+                label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 20),
+                label.trailingAnchor.constraint(equalTo: row.trailingAnchor),
+                label.topAnchor.constraint(equalTo: row.topAnchor),
+                label.bottomAnchor.constraint(equalTo: row.bottomAnchor),
+            ])
+            rows.addArrangedSubview(row)
+            stepDots.append(dot)
+            stepLabels.append(label)
+        }
+
+        justLikeThatLabel.text = NSLocalizedString("ob_step_just_like_that", comment: "")
+        justLikeThatLabel.font = Self.appFont(size: 30, bold: false)
+        justLikeThatLabel.textColor = OnboardingPalette.primary
+        justLikeThatLabel.textAlignment = .center
+        justLikeThatLabel.translatesAutoresizingMaskIntoConstraints = false
+        stepsContainer.addSubview(justLikeThatLabel)
+
+        catNoteLabel.text = NSLocalizedString("ob_step_cat_note", comment: "")
+        catNoteLabel.font = Self.appFont(size: 19, bold: false)
+        catNoteLabel.textColor = OnboardingPalette.primary
+        catNoteLabel.textAlignment = .center
+        catNoteLabel.numberOfLines = 0
+        catNoteLabel.translatesAutoresizingMaskIntoConstraints = false
+        stepsContainer.addSubview(catNoteLabel)
+
+        catVideo.accessibilityLabel = NSLocalizedString("ob_cat_video", comment: "")
+        catVideo.translatesAutoresizingMaskIntoConstraints = false
+        stepsContainer.addSubview(catVideo)
+
         NSLayoutConstraint.activate([
-            content.topAnchor.constraint(equalTo: section.topAnchor),
-            content.bottomAnchor.constraint(equalTo: section.bottomAnchor),
-            content.leadingAnchor.constraint(equalTo: section.leadingAnchor),
-            content.trailingAnchor.constraint(equalTo: section.trailingAnchor),
+            stepsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stepsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stepsContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 36),
+
+            rows.topAnchor.constraint(equalTo: stepsContainer.topAnchor),
+            rows.centerXAnchor.constraint(equalTo: stepsContainer.centerXAnchor),
+
+            justLikeThatLabel.topAnchor.constraint(equalTo: rows.bottomAnchor, constant: 28),
+            justLikeThatLabel.centerXAnchor.constraint(equalTo: stepsContainer.centerXAnchor),
+
+            catNoteLabel.topAnchor.constraint(equalTo: justLikeThatLabel.bottomAnchor, constant: 40),
+            catNoteLabel.centerXAnchor.constraint(equalTo: stepsContainer.centerXAnchor),
+            catNoteLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 440),
+            catNoteLabel.leadingAnchor.constraint(greaterThanOrEqualTo: stepsContainer.leadingAnchor, constant: 36),
+
+            catVideo.topAnchor.constraint(equalTo: catNoteLabel.bottomAnchor, constant: 12),
+            catVideo.centerXAnchor.constraint(equalTo: stepsContainer.centerXAnchor),
+            catVideo.widthAnchor.constraint(equalToConstant: 141),
+            catVideo.heightAnchor.constraint(equalTo: catVideo.widthAnchor, multiplier: 1 / catVideo.aspectRatio),
+            catVideo.bottomAnchor.constraint(equalTo: stepsContainer.bottomAnchor),
         ])
     }
 
@@ -289,20 +307,23 @@ final class OnboardingViewController: UIViewController {
         para.alignment   = .center
         para.lineSpacing = 2
 
-        let pinnedNoteFont = UIFont(name: "BradleyHandITCTT-Bold", size: 38)
-                          ?? UIFont.systemFont(ofSize: 38, weight: .bold)
+        let pinnedNoteFont = UIFont(name: "BradleyHandITCTT-Bold", size: 52)
+                          ?? UIFont.systemFont(ofSize: 52, weight: .bold)
 
         let attr = NSMutableAttributedString()
         attr.append(NSAttributedString(
             string: NSLocalizedString("ob_welcome_to", comment: ""),
-            attributes: [.font: Self.onboardingFont(size: 22),
+            attributes: [.font: Self.appFont(size: 32, bold: false),
                          .foregroundColor: OnboardingPalette.secondary,
                          .paragraphStyle: para]
         ))
         attr.append(NSAttributedString(
             string: "PinnedNote",
+            // Stroked in its own colour for heavier letters, as the list's wordmark.
             attributes: [.font: pinnedNoteFont,
                          .foregroundColor: OnboardingPalette.primary,
+                         .strokeColor: OnboardingPalette.primary,
+                         .strokeWidth: -3.5,
                          .paragraphStyle: para]
         ))
         return attr
@@ -314,18 +335,24 @@ final class OnboardingViewController: UIViewController {
         let page    = pages[index]
         let cfg     = UIImage.SymbolConfiguration(pointSize: 60, weight: .ultraLight)
         let isPage1 = (index == 1)
+        let isSteps = (index == 2)
+        let isLastPage = (index == pages.count - 1)
 
         func applyContent() {
             page1Container.isHidden = !isPage1
-            iconView.isHidden       = isPage1 || (page.symbol == nil)
+            if isPage1 { demoVideo.playFromStart() } else { demoVideo.pause() }
+            stepsContainer.isHidden = !isSteps
+            if isSteps { catVideo.playFromStart() } else { catVideo.pause() }
+            if isLastPage { coffeeCatVideo.playFromStart() } else { coffeeCatVideo.pause() }
+            iconView.isHidden       = isPage1 || isSteps || (page.symbol == nil)
 
-            // Page 2 (coffee page): shift content up so title+body+coffee are vertically centered
-            // Page 0: no icon, short content → -110 works fine
-            iconCenterYConstraint?.constant = (index == 2) ? -174 : -110
+            // Coffee page: shift content up so title+body+coffee are vertically centered
+            // Page 0: no icon, short content → a little above the middle
+            iconCenterYConstraint?.constant = isLastPage ? -200 : -170
             view.layoutIfNeeded()
 
-            if isPage1 {
-                // page 1: standard views stay invisible; page1Container animates separately
+            if isPage1 || isSteps {
+                // standard views stay invisible; these pages animate their own views
             } else {
                 if let sym = page.symbol {
                     iconView.image = UIImage(systemName: sym, withConfiguration: cfg)
@@ -334,10 +361,13 @@ final class OnboardingViewController: UIViewController {
                     titleLabel.attributedText = attributedWelcomeTitle()
                 } else {
                     titleLabel.attributedText = nil
-                    titleLabel.font      = Self.onboardingFont(size: 28)
+                    // Like the steps' "Write": bold Kalam.
+                    titleLabel.font      = Self.appFont(size: 36, bold: true)
                     titleLabel.textColor = OnboardingPalette.primary
                     titleLabel.text      = page.title
                 }
+                // The welcome page's line is larger than the other pages' text.
+                bodyLabel.font = Self.appFont(size: index == 0 ? 26 : 21, bold: false)
                 bodyLabel.text = page.body
                 titleLabel.alpha = 0
                 bodyLabel.alpha  = 0
@@ -351,22 +381,16 @@ final class OnboardingViewController: UIViewController {
                 self.titleLabel.alpha       = 0
                 self.bodyLabel.alpha        = 0
                 self.coffeeIconView.alpha   = 0
+                self.coffeeCatVideo.alpha   = 0
                 self.page1Container.alpha   = 0
+                self.stepsContainer.alpha   = 0
             } completion: { _ in
                 applyContent()
-                if isPage1 {
-                    self.animatePage1In()
-                } else {
-                    self.animateIn()
-                }
+                self.animateContentIn(isPage1: isPage1, isSteps: isSteps)
             }
         } else {
             applyContent()
-            if isPage1 {
-                animatePage1In()
-            } else {
-                animateIn()
-            }
+            animateContentIn(isPage1: isPage1, isSteps: isSteps)
         }
 
         pageControl.currentPage = index
@@ -381,6 +405,16 @@ final class OnboardingViewController: UIViewController {
         }
     }
 
+    private func animateContentIn(isPage1: Bool, isSteps: Bool) {
+        if isPage1 {
+            animatePage1In()
+        } else if isSteps {
+            animateStepsIn()
+        } else {
+            animateIn()
+        }
+    }
+
     // MARK: - Animate in: shared views
 
     private func animateIn() {
@@ -392,7 +426,7 @@ final class OnboardingViewController: UIViewController {
                 self.iconView.transform = .identity
             }
         }
-        let isLastPage   = (currentPage == 2)
+        let isLastPage   = (currentPage == pages.count - 1)
         let titleDur     = isLastPage ? 1.1  : 0.6
         let titleDelay   = isLastPage ? 0.4  : 0.18
         let bodyDur      = isLastPage ? 1.1  : 0.6
@@ -410,7 +444,7 @@ final class OnboardingViewController: UIViewController {
             self.bodyLabel.alpha     = 1
             self.bodyLabel.transform = .identity
         }
-        // Coffee icon — only on page 2
+        // Coffee icon — only on the last page
         if isLastPage {
             coffeeIconView.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
             UIView.animate(withDuration: 1.1, delay: 1.1,
@@ -418,38 +452,56 @@ final class OnboardingViewController: UIViewController {
                 self.coffeeIconView.alpha     = 1
                 self.coffeeIconView.transform = .identity
             }
+            UIView.animate(withDuration: 0.9, delay: 1.6, options: .curveEaseInOut) {
+                self.coffeeCatVideo.alpha = 1
+            }
         }
     }
 
-    // MARK: - Animate in: page 1 (right → left, staggered)
+    // MARK: - Animate in: page 1
 
     private func animatePage1In() {
-        let slideOffset = UIScreen.main.bounds.width * 0.85
-
-        // Reset all sections to off-screen right
-        for section in [p1Section1, p1Section2, p1Section3] {
-            section.transform = CGAffineTransform(translationX: slideOffset, y: 0)
-            section.alpha     = 0
+        page1Container.alpha = 0
+        page1Container.transform = CGAffineTransform(translationX: 0, y: 24)
+        UIView.animate(withDuration: 0.7, delay: 0,
+                       usingSpringWithDamping: 0.85, initialSpringVelocity: 0) {
+            self.page1Container.alpha = 1
+            self.page1Container.transform = .identity
         }
-        page1Container.alpha = 1
+    }
 
-        let dur: TimeInterval = 0.85
-        let damp: CGFloat     = 0.85
+    // MARK: - Animate in: page 2
 
-        UIView.animate(withDuration: dur, delay: 0,
-                       usingSpringWithDamping: damp, initialSpringVelocity: 0) {
-            self.p1Section1.transform = .identity
-            self.p1Section1.alpha     = 1
+    /// One step after another: its dot fades in, then its word slides in from the
+    /// right; at the end "...just like that!" fades in, then the note about the cat.
+    private func animateStepsIn() {
+        let animated = stepDots + stepLabels + [justLikeThatLabel, catNoteLabel, catVideo]
+        animated.forEach {
+            $0.layer.removeAllAnimations()
+            $0.alpha = 0
         }
-        UIView.animate(withDuration: dur, delay: 0.75,
-                       usingSpringWithDamping: damp, initialSpringVelocity: 0) {
-            self.p1Section2.transform = .identity
-            self.p1Section2.alpha     = 1
+        stepLabels.forEach { $0.transform = CGAffineTransform(translationX: 140, y: 0) }
+        stepsContainer.alpha = 1
+
+        for (i, (dot, label)) in zip(stepDots, stepLabels).enumerated() {
+            let start = 0.25 + Double(i) * 0.85
+            UIView.animate(withDuration: 0.45, delay: start, options: .curveEaseOut) {
+                dot.alpha = 1
+            }
+            UIView.animate(withDuration: 0.8, delay: start + 0.25,
+                           usingSpringWithDamping: 0.82, initialSpringVelocity: 0) {
+                label.alpha = 1
+                label.transform = .identity
+            }
         }
-        UIView.animate(withDuration: dur, delay: 1.5,
-                       usingSpringWithDamping: damp, initialSpringVelocity: 0) {
-            self.p1Section3.transform = .identity
-            self.p1Section3.alpha     = 1
+        UIView.animate(withDuration: 0.9, delay: 0.25 + 3 * 0.85 + 0.2, options: .curveEaseInOut) {
+            self.justLikeThatLabel.alpha = 1
+        }
+        UIView.animate(withDuration: 0.9, delay: 0.25 + 3 * 0.85 + 1.0, options: .curveEaseInOut) {
+            self.catNoteLabel.alpha = 1
+        }
+        UIView.animate(withDuration: 0.9, delay: 0.25 + 3 * 0.85 + 1.6, options: .curveEaseInOut) {
+            self.catVideo.alpha = 1
         }
     }
 
@@ -514,5 +566,71 @@ private extension OnboardingViewController {
     static func onboardingFont(size: CGFloat) -> UIFont {
         UIFont(name: "Cavolini", size: size)            // ← swap tady pro změnu fontu
         ?? .systemFont(ofSize: size, weight: .regular)  // fallback
+    }
+
+    /// The app's default note typeface (Kalam).
+    static func appFont(size: CGFloat, bold: Bool) -> UIFont {
+        let font = AppFont.default
+        let name = bold ? font.boldName : font.regularName
+        return name.flatMap { UIFont(name: $0, size: size * font.sizeScale) }
+            ?? .systemFont(ofSize: size, weight: bold ? .bold : .regular)
+    }
+}
+
+// MARK: - Demo video
+
+/// Plays a bundled video in a loop, silently, optionally framed like a phone screen.
+private final class OnboardingVideoView: UIView {
+
+    /// Width ÷ height of the video.
+    let aspectRatio: CGFloat
+
+    private let player = AVQueuePlayer()
+    private var looper: AVPlayerLooper?
+
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+
+    private let framedLikePhone: Bool
+
+    /// `aspectRatio`: the size the video is encoded at.
+    init(resource: String, extension ext: String, aspectRatio: CGFloat, framedLikePhone: Bool) {
+        let url = Bundle.main.url(forResource: resource, withExtension: ext)
+        let item = url.map { AVPlayerItem(url: $0) }
+        self.aspectRatio = aspectRatio
+        self.framedLikePhone = framedLikePhone
+        super.init(frame: .zero)
+
+        // No audio: it mustn't stop the music the user may be listening to.
+        player.isMuted = true
+        player.preventsDisplaySleepDuringVideoPlayback = false
+        if let item { looper = AVPlayerLooper(player: player, templateItem: item) }
+        playerLayer.player = player
+        playerLayer.videoGravity = .resizeAspectFill
+
+        backgroundColor = OnboardingPalette.background
+        layer.cornerCurve = .continuous
+        layer.masksToBounds = true
+        isAccessibilityElement = true
+        accessibilityTraits = .image
+        accessibilityLabel = NSLocalizedString("ob_demo_video", comment: "")
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // The curve of an iPhone screen, so the recording's own rounded corners
+        // (black while the app opens) stay hidden.
+        layer.cornerRadius = framedLikePhone ? bounds.width * 0.14 : 0
+    }
+
+    func playFromStart() {
+        player.seek(to: .zero)
+        player.play()
+    }
+
+    func pause() {
+        player.pause()
     }
 }

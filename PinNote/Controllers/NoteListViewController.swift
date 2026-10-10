@@ -10,7 +10,7 @@ final class NoteListViewController: UIViewController {
     private let masonryLayout = MasonryLayout()
     private lazy var collectionView = UICollectionView(frame: .zero, collectionViewLayout: masonryLayout)
     private let bottomBar    = NoteListBottomBar()
-    private let emptyState   = EmptyStateView()
+    private let emptyState   = FirstNoteBubble()
     private let trialBanner  = TrialExpiredBannerView()
     private let headerFadeView = UIView()
     private let headerFadeLayer = CAGradientLayer()
@@ -192,6 +192,7 @@ final class NoteListViewController: UIViewController {
         emptyState.isHidden = true
         view.addSubview(emptyState)
         emptyState.onCreateNote = { [weak self] in self?.openNewNote() }
+        emptyState.onClose = { [weak self] in self?.dismissFirstNoteHint() }
 
         tableTopNoBanner   = collectionView.topAnchor.constraint(equalTo: headerFadeView.topAnchor)
         tableTopWithBanner = collectionView.topAnchor.constraint(equalTo: trialBanner.bottomAnchor, constant: 4)
@@ -218,8 +219,10 @@ final class NoteListViewController: UIViewController {
             collectionView.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            emptyState.centerXAnchor.constraint(equalTo: readableGuide.centerXAnchor),
-            emptyState.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -40),
+            // Above the new-note button, its tip pointing at it.
+            emptyState.trailingAnchor.constraint(equalTo: bottomBar.newNoteAnchorView.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: bottomBar.newNoteAnchorView.topAnchor, constant: -10),
+            emptyState.leadingAnchor.constraint(greaterThanOrEqualTo: readableGuide.leadingAnchor, constant: PN.padding),
         ])
 
         refreshHeaderFade()
@@ -397,15 +400,37 @@ final class NoteListViewController: UIViewController {
 
     // MARK: - Empty state
 
+    private static let firstNoteHintDismissedKey = "pnFirstNoteHintDismissed"
+
+    private var isFirstNoteHintDismissed: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.firstNoteHintDismissedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.firstNoteHintDismissedKey) }
+    }
+
     private func refreshEmptyState() {
         let empty = NoteStore.shared.notes.isEmpty
-        emptyState.isHidden = !empty
+        // The hint is for a first start: once there are notes, it's done for good.
+        if !empty { isFirstNoteHintDismissed = true }
+        let showHint = empty && !isFirstNoteHintDismissed
+        if showHint, emptyState.isHidden {
+            emptyState.isHidden = false
+            emptyState.appear()
+        } else if !showHint {
+            emptyState.isHidden = true
+        }
         collectionView.isHidden  = empty
+    }
+
+    private func dismissFirstNoteHint() {
+        isFirstNoteHintDismissed = true
+        guard !emptyState.isHidden else { return }
+        emptyState.disappear { [weak self] in self?.emptyState.isHidden = true }
     }
 
     // MARK: - Actions
 
     private func openNewNote() {
+        dismissFirstNoteHint()
         // If a note detail is already on top, pop it first (saves note via viewWillDisappear)
         if navigationController?.topViewController is NoteDetailViewController {
             navigationController?.popToViewController(self, animated: false)
@@ -871,49 +896,164 @@ private final class TrialExpiredBannerView: UIView {
     }
 }
 
-// MARK: - EmptyStateView
+// MARK: - FirstNoteBubble
 
-private final class EmptyStateView: UIView {
+/// A speech bubble over the new-note button, shown while there are no notes yet:
+/// "No notes yet? Write your first one", with a cross to close it. It bobs gently.
+private final class FirstNoteBubble: UIView {
 
     var onCreateNote: (() -> Void)?
+    var onClose: (() -> Void)?
 
-    private let label = UILabel()
-    private let btn   = UIButton(type: .system)
+    /// How far from the bubble's right edge its tip points: the middle of the new-note pill.
+    private let tipInsetFromTrailing: CGFloat = 37
+    private let tipSize = CGSize(width: 22, height: 11)
+    private let cornerRadius: CGFloat = 20
 
-    func refreshColors() {
-        label.textColor = .pnSecondary
-        btn.tintColor   = .pnPrimary
-    }
+    private let shape = CAShapeLayer()
+    private let titleLabel = UILabel()
+    private let bodyLabel = UILabel()
+    private let closeButton = UIButton(type: .system)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        layer.addSublayer(shape)
+        shape.shadowColor = UIColor.black.cgColor
+        shape.shadowRadius = 14
+        shape.shadowOffset = CGSize(width: 0, height: 6)
 
-        let font = UIFont(name: "BradleyHandITCTT-Bold", size: 24) ?? PN.font(24, bold: true)
+        titleLabel.text = NSLocalizedString("list_no_notes", comment: "")
+        titleLabel.font = UIFont(name: "Kalam-Bold", size: 21) ?? PN.font(21, bold: true)
+        bodyLabel.text = NSLocalizedString("list_write_first", comment: "")
+        bodyLabel.font = UIFont(name: "Kalam-Regular", size: 18) ?? PN.font(18)
+        [titleLabel, bodyLabel].forEach { $0.numberOfLines = 0 }
 
-        label.text      = NSLocalizedString("list_no_notes", comment: "")
-        label.font      = font
-        label.textColor = .pnSecondary
+        let symbol = UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        closeButton.setImage(UIImage(systemName: "xmark", withConfiguration: symbol), for: .normal)
+        closeButton.accessibilityLabel = NSLocalizedString("list_hint_close", comment: "")
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
 
-        btn.setTitle(NSLocalizedString("list_write_first", comment: ""), for: .normal)
-        btn.titleLabel?.font = font
-        btn.tintColor        = .pnPrimary
-        btn.addTarget(self, action: #selector(tap), for: .touchUpInside)
-
-        let stack = UIStackView(arrangedSubviews: [label, btn])
-        stack.axis      = .vertical
-        stack.alignment = .center
-        stack.spacing   = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-
+        let text = UIStackView(arrangedSubviews: [titleLabel, bodyLabel])
+        text.axis = .vertical
+        text.spacing = -4
+        [text, closeButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            addSubview($0)
+        }
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            text.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            text.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
+            text.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -(12 + tipSize.height)),
+            text.widthAnchor.constraint(lessThanOrEqualToConstant: 240),
+
+            closeButton.leadingAnchor.constraint(equalTo: text.trailingAnchor, constant: 6),
+            closeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            closeButton.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            closeButton.widthAnchor.constraint(equalToConstant: 36),
+            closeButton.heightAnchor.constraint(equalToConstant: 36),
         ])
+
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(bubbleTapped)))
+        isAccessibilityElement = false
+        refreshColors()
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    @objc private func tap() { onCreateNote?() }
+    func refreshColors() {
+        shape.fillColor = UIColor.pnFloatingControlBackground.cgColor
+        shape.shadowOpacity = PN.floatingControlShadowOpacity
+        titleLabel.textColor = .pnPrimary
+        bodyLabel.textColor = .pnSecondary
+        closeButton.tintColor = .pnSecondary
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let body = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height - tipSize.height)
+        let path = UIBezierPath(roundedRect: body, cornerRadius: cornerRadius)
+        let tipX = bounds.width - tipInsetFromTrailing
+        let tip = UIBezierPath()
+        // Drawn in the same direction as the rounded rect, so where they overlap stays filled.
+        tip.move(to: CGPoint(x: tipX + tipSize.width / 2, y: body.maxY - 1))
+        tip.addQuadCurve(to: CGPoint(x: tipX, y: bounds.height),
+                         controlPoint: CGPoint(x: tipX + 3, y: body.maxY + 4))
+        tip.addQuadCurve(to: CGPoint(x: tipX - tipSize.width / 2, y: body.maxY - 1),
+                         controlPoint: CGPoint(x: tipX - 3, y: body.maxY + 4))
+        tip.close()
+        path.append(tip)
+        shape.frame = bounds
+        shape.path = path.cgPath
+        shape.shadowPath = path.cgPath
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        refreshColors()
+    }
+
+    // MARK: Animation
+
+    /// Springs up out of the button, then keeps bobbing gently.
+    func appear() {
+        superview?.layoutIfNeeded()
+        layer.removeAnimation(forKey: "bob")
+        transform = scaledTowardsTip(0.4)
+        contentAlpha = 0
+        UIView.animate(withDuration: 0.7, delay: 0.5, usingSpringWithDamping: 0.55,
+                       initialSpringVelocity: 0.4) {
+            self.transform = .identity
+            self.contentAlpha = 1
+        } completion: { _ in
+            self.startBobbing()
+        }
+    }
+
+    func disappear(completion: @escaping () -> Void) {
+        layer.removeAnimation(forKey: "bob")
+        UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseIn) {
+            self.transform = self.scaledTowardsTip(0.5)
+            self.contentAlpha = 0
+        } completion: { _ in
+            self.transform = .identity
+            completion()
+        }
+    }
+
+    private func startBobbing() {
+        guard layer.animation(forKey: "bob") == nil else { return }
+        let bob = CABasicAnimation(keyPath: "transform.translation.y")
+        bob.fromValue = 0
+        bob.toValue = -6
+        bob.duration = 0.9
+        bob.autoreverses = true
+        bob.repeatCount = .infinity
+        bob.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        bob.isRemovedOnCompletion = false
+        layer.add(bob, forKey: "bob")
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        // Animations are dropped while off screen (e.g. under a pushed note).
+        if window != nil, !isHidden, transform == .identity, contentAlpha == 1 { startBobbing() }
+    }
+
+    /// Separate from `alpha`, which the list's landing animation uses.
+    private var contentAlpha: CGFloat {
+        get { subviews.first?.alpha ?? 1 }
+        set {
+            subviews.forEach { $0.alpha = newValue }
+            shape.opacity = Float(newValue)
+        }
+    }
+
+    /// Scaled by `scale` around the tip, so the bubble grows out of the button.
+    private func scaledTowardsTip(_ scale: CGFloat) -> CGAffineTransform {
+        let dx = (bounds.width / 2 - tipInsetFromTrailing) * (1 - scale)
+        let dy = (bounds.height / 2) * (1 - scale)
+        return CGAffineTransform(translationX: dx, y: dy).scaledBy(x: scale, y: scale)
+    }
+
+    @objc private func bubbleTapped() { onCreateNote?() }
+    @objc private func closeTapped() { onClose?() }
 }

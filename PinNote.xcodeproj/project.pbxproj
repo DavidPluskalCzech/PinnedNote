@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9A1B2C300000000000000B5 /* onboarding-cat.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000B4 /* onboarding-cat.mp4 */; };
+		C9A1B2C300000000000000B3 /* onboarding-demo.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000B2 /* onboarding-demo.mp4 */; };
 		C9A1B2C300000000000000A6 /* WidgetNotesSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */; };
 		C9A1B2C300000000000000A7 /* WidgetNotesSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */; };
 		C9A1B2C300000000000000A8 /* NotesWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A2 /* NotesWidgetViews.swift */; };
@@ -97,6 +99,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C9A1B2C300000000000000B4 /* onboarding-cat.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "onboarding-cat.mp4"; sourceTree = "<group>"; };
+		C9A1B2C300000000000000B2 /* onboarding-demo.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "onboarding-demo.mp4"; sourceTree = "<group>"; };
 		C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetNotesSnapshot.swift; sourceTree = "<group>"; };
 		C9A1B2C300000000000000A2 /* NotesWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesWidgetViews.swift; sourceTree = "<group>"; };
 		C9A1B2C300000000000000A3 /* WidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSync.swift; sourceTree = "<group>"; };
@@ -189,6 +193,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		C9A1B2C300000000000000B1 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C9A1B2C300000000000000B4 /* onboarding-cat.mp4 */,
+				C9A1B2C300000000000000B2 /* onboarding-demo.mp4 */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		C9A1B2C30000000000000024 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
@@ -315,6 +328,7 @@
 				01602B58D5A175354FFBBD14 /* Models */,
 				7616FC4F96E9524B02555B49 /* Shared */,
 				C9A1B2C30000000000000024 /* Fonts */,
+				C9A1B2C300000000000000B1 /* Resources */,
 				9F23E773232D91C01E4B65BD /* Design */,
 				76857891C0E5DF803939AEFD /* Controllers */,
 				36551AF0718D580AC8DBAD2B /* Views */,
@@ -482,6 +496,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9A1B2C300000000000000B3 /* onboarding-demo.mp4 in Resources */,
+				C9A1B2C300000000000000B5 /* onboarding-cat.mp4 in Resources */,
 				03F94C7D18A5B2E9CA74975C /* Assets.xcassets in Resources */,
 				C997E15A2F9299300003B467 /* Localizable.strings in Resources */,
 				C9A1B2C30000000000000026 /* Kalam-Regular.ttf in Resources */,

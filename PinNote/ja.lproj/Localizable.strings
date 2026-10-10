@@ -20,13 +20,14 @@
 "ob_seven_days_free" = "14日間無料";
 "ob_coffee_body" = "一人で作りました — あなたのために。日常の一部になったら、コーヒー一杯で開発を続けられます。";
 "ob_continue" = "続ける";
+"ob_demo_video" = "ロック画面からメモを書いて固定する様子";
+"ob_step_idea" = "ひらめいて";
+"ob_step_write" = "書いて";
+"ob_step_pin" = "ピン留め";
+"ob_step_just_like_that" = "…それだけ！";
+"ob_step_cat_note" = "考えを整理している間、この小さな猫がそばにいてくれます。まばたきしたり、伸びをしたり、うたた寝したり。ただそこにいられるのがうれしいんです。";
+"ob_cat_video" = "座ってあたりを見回す小さな灰色の猫";
 "ob_get_started" = "はじめる";
-"ob_capture_ideas_title" = "アイデアを記録しよう";
-"ob_capture_ideas_body" = "アイデアが浮かんだとき\nいつでもPinnedNoteですぐにメモできます";
-"ob_pin_lock_title" = "ロック画面に固定";
-"ob_pin_lock_body" = "大切なメモをいつでも目に入る場所へ";
-"ob_write_now_title" = "すぐに書く";
-"ob_write_now_body" = "ロック画面から直接アイデアを書き留められます";
 
 /* Note List */
 "list_trial_ended_banner" = "無料トライアルが終了しました。";
@@ -37,6 +38,7 @@
 "list_cancel" = "キャンセル";
 "list_no_notes" = "まだメモはありません";
 "list_write_first" = "最初のメモを書いてみましょう。";
+"list_hint_close" = "閉じる";
 "pin_toast_pinned" = "ロック画面に固定しました";
 "pin_toast_unpinned" = "ロック画面から固定解除しました";
 "list_menu_pin" = "ロック画面に固定";

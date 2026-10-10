@@ -20,13 +20,14 @@
 "ob_seven_days_free" = "14 dní zdarma";
 "ob_coffee_body" = "Tuto aplikaci jsem vytvořil sám. Pro sebe, a potom pro Tebe. Pokud si PinnedNote najde místo ve Tvém dni, za cenu jedné kávy mi pomůžeš aplikaci zlepšovat a udržovat aktuální";
 "ob_continue" = "Pokračovat";
+"ob_demo_video" = "Napsání poznámky ze zamykací obrazovky a její připnutí";
+"ob_step_idea" = "Dostaň nápad";
+"ob_step_write" = "Napiš";
+"ob_step_pin" = "Připni";
+"ob_step_just_like_that" = "...a je to!";
+"ob_step_cat_note" = "Tahle malá kočka ti bude dělat společnost, zatímco si budeš třídit myšlenky. Občas mrkne, protáhne se nebo si zdřímne. Je prostě ráda, že tam může být.";
+"ob_cat_video" = "Malá šedá kočka sedí a rozhlíží se";
 "ob_get_started" = "Začít";
-"ob_capture_ideas_title" = "Zachyť své myšlenky";
-"ob_capture_ideas_body" = "PinnedNote je připraven, kdykoli\n se objeví nápad";
-"ob_pin_lock_title" = "Připínej poznámky na zamykací obrazovku";
-"ob_pin_lock_body" = "Měj to důležité stále na očích";
-"ob_write_now_title" = "Zapisuj okamžitě";
-"ob_write_now_body" = "Nápady lze zapsat přímo ze zamykací obrazovky";
 
 /* Note List */
 "list_trial_ended_banner" = "Zkušební verze je u konce.";
@@ -37,6 +38,7 @@
 "list_cancel" = "Zrušit";
 "list_no_notes" = "Zatím žádné poznámky?";
 "list_write_first" = "Napiš svou první";
+"list_hint_close" = "Zavřít";
 "pin_toast_pinned" = "Připnuto na zamykací obrazovku";
 "pin_toast_unpinned" = "Odepnuto ze zamykací obrazovky";
 "list_menu_pin" = "Připnout na zamykací obrazovku";

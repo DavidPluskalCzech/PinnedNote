@@ -103,6 +103,9 @@ final class NoteListBottomBar: UIView {
         return view
     }()
 
+    /// The pill holding the new-note button, for hints that point at it.
+    var newNoteAnchorView: UIView { newNoteBar }
+
     private lazy var normalStack: UIStackView = {
         let stack = UIStackView(arrangedSubviews: [UIView(), normalBar, newNoteBar])
         stack.axis = .horizontal
