@@ -343,7 +343,7 @@ final class NoteDetailBottomBar: UIView {
     }()
 
     private lazy var scheduleButton: ToolbarButton = {
-        let button = makeIconButton(systemName: "timer", tintColor: .pnPrimary)
+        let button = makeIconButton(systemName: "alarm", tintColor: .pnPrimary)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(tapSchedule), for: .primaryActionTriggered)
         NSLayoutConstraint.activate([
@@ -438,7 +438,7 @@ final class NoteDetailBottomBar: UIView {
 
     func setScheduled(_ scheduled: Bool) {
         isScheduled = scheduled
-        let symbolName = scheduled ? "timer.circle.fill" : "timer"
+        let symbolName = scheduled ? "alarm.fill" : "alarm"
         let symbolCfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .semibold)
         scheduleButton.setImage(UIImage(systemName: symbolName, withConfiguration: symbolCfg), for: .normal)
         scheduleButton.tintColor = .pnPrimary

@@ -33,14 +33,21 @@ final class NoteCell: UICollectionViewCell {
     /// sheet looks different but stays the same across reloads.
     private var paperSeed: UInt64 = 0
     private var tilt: CGFloat = 0
+    /// The pinned note stands a little proud of the others, as if held up by its pin.
+    private var isRaised = false
 
     private let leftAccent   = UIView()
     private let titleLabel   = UILabel()
     private let bodyLabel    = UILabel()
     /// Small secondary line under the text, e.g. the countdown in the trash.
     private let footnoteLabel = UILabel()
-    private let pinIcon      = UIImageView()
+    /// Keeps a little room in the title row for the pin, which is drawn above the paper.
+    private let pinIcon      = UIView()
+    /// The pushpin stuck through the pinned note's paper.
+    private let pinBadge     = PushPinView()
+    /// Alarm clock for a scheduled pin: in the pin's corner, or under the pin.
     private let timerIcon    = UIImageView()
+    private var timerTopConstraint: NSLayoutConstraint!
     private let statusStack  = UIStackView()
 
     // Custom multi-select indicator, shown in place of the status icons
@@ -79,26 +86,28 @@ final class NoteCell: UICollectionViewCell {
         cardView.translatesAutoresizingMaskIntoConstraints = false
         paperView.addSubview(cardView)
 
-        // Left accent bar for the pinned note — clipped by the paper's outline
-        leftAccent.backgroundColor = .pnPrimary
+        // Spacer before the text (once an accent bar for the pinned note)
+        leftAccent.backgroundColor = .clear
         leftAccent.translatesAutoresizingMaskIntoConstraints = false
         cardView.addSubview(leftAccent)
 
         // Status icons
-        let pinCfg = UIImage.SymbolConfiguration(pointSize: 9, weight: .regular)
-        pinIcon.image               = UIImage(systemName: "pin.fill", withConfiguration: pinCfg)
-        pinIcon.tintColor           = .pnPrimary
-        pinIcon.contentMode         = .scaleAspectFit
+        pinIcon.isUserInteractionEnabled = false
 
-        let timerCfg = UIImage.SymbolConfiguration(pointSize: 10, weight: .regular)
-        timerIcon.image               = UIImage(systemName: "timer.circle.fill", withConfiguration: timerCfg)
+        // The pin sits on the paper, in its top-right corner.
+        pinBadge.translatesAutoresizingMaskIntoConstraints = false
+        paperView.addSubview(pinBadge)
+
+        let timerCfg = UIImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+        timerIcon.image               = UIImage(systemName: "alarm.fill", withConfiguration: timerCfg)
         timerIcon.tintColor           = .pnPrimary
         timerIcon.contentMode         = .scaleAspectFit
 
         statusStack.axis = .horizontal
         statusStack.alignment = .center
         statusStack.spacing = 5
-        statusStack.addArrangedSubview(timerIcon)
+        timerIcon.translatesAutoresizingMaskIntoConstraints = false
+        paperView.addSubview(timerIcon)
         statusStack.addArrangedSubview(pinIcon)
 
         // Selection ring + fill
@@ -143,6 +152,7 @@ final class NoteCell: UICollectionViewCell {
         cardView.addSubview(textStack)
 
         let p = padding
+        timerTopConstraint = timerIcon.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 10)
         NSLayoutConstraint.activate([
             paperView.topAnchor.constraint(equalTo: contentView.topAnchor),
             paperView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
@@ -160,10 +170,18 @@ final class NoteCell: UICollectionViewCell {
             leftAccent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor),
             leftAccent.widthAnchor.constraint(equalToConstant: 4),
 
-            pinIcon.widthAnchor.constraint(equalToConstant: 12),
+            pinIcon.widthAnchor.constraint(equalToConstant: 4),
             pinIcon.heightAnchor.constraint(equalToConstant: 12),
-            timerIcon.widthAnchor.constraint(equalToConstant: 13),
-            timerIcon.heightAnchor.constraint(equalToConstant: 13),
+            // Inside the paper, in the corner above and right of the text.
+            pinBadge.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 3),
+            pinBadge.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -4),
+            pinBadge.widthAnchor.constraint(equalToConstant: PushPinView.size.width),
+            pinBadge.heightAnchor.constraint(equalToConstant: PushPinView.size.height),
+            timerIcon.widthAnchor.constraint(equalToConstant: 17),
+            timerIcon.heightAnchor.constraint(equalToConstant: 17),
+            // Centred under the pin's head (18 pt into the pin's square from its left).
+            timerIcon.centerXAnchor.constraint(equalTo: pinBadge.leadingAnchor, constant: 18),
+            timerTopConstraint,
 
             selectionIndicator.widthAnchor.constraint(equalToConstant: selectionSize),
             selectionIndicator.heightAnchor.constraint(equalToConstant: selectionSize),
@@ -220,8 +238,13 @@ final class NoteCell: UICollectionViewCell {
         paperSeed = withUnsafeBytes(of: note.id.uuid) { $0.load(as: UInt64.self) }
         // Up to about ±1° either way.
         tilt = (CGFloat(paperSeed % 1000) / 1000 - 0.5) * 0.035
+        isRaised = note.isPinned && !editing
         paperView.transform = paperTransform(pressed: isHighlighted)
-        paperView.layer.shadowOpacity = ThemeManager.shared.current == .dark ? 0.6 : 0.18
+        let dark = ThemeManager.shared.current == .dark
+        // Raised: a bigger, softer shadow falling further below.
+        paperView.layer.shadowOpacity = isRaised ? (dark ? 0.85 : 0.26) : (dark ? 0.6 : 0.18)
+        paperView.layer.shadowRadius = isRaised ? 12 : 6
+        paperView.layer.shadowOffset = CGSize(width: 0, height: isRaised ? 9 : 3)
         cardView.setNeedsLayout()
 
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -247,16 +270,19 @@ final class NoteCell: UICollectionViewCell {
 
         let pinned = note.isPinned
         let scheduled = (note.scheduledPinDate ?? .distantPast) > Date()
-        pinIcon.isHidden           = !pinned
-        timerIcon.isHidden         = !scheduled
-        leftAccent.backgroundColor = pinned ? .pnPrimary : .clear
+        // The title row keeps a little room in the corner for the pin or alarm.
+        pinIcon.isHidden           = !pinned && !scheduled
+        timerIcon.isHidden         = !scheduled || editing
+        pinBadge.isHidden          = !pinned || editing
+        // Alone, the alarm takes the pin's place; with a pin, it sits just below it.
+        timerTopConstraint.constant = pinned ? 33 : 9
 
         // Theme-dependent colors (configure runs on every reload, including theme changes)
         cardView.backgroundColor        = paperRimColor
         paperFace.fillColor             = paperFaceColor(highlighted: isHighlighted).cgColor
         titleLabel.textColor            = .pnPrimary
         bodyLabel.textColor             = .pnPrimary
-        pinIcon.tintColor               = .pnPrimary
+        pinBadge.refreshColors()
         timerIcon.tintColor             = .pnPrimary
         selectionFill.backgroundColor   = .pnPrimary
         selectionRing.layer.borderColor = UIColor.pnPrimary.cgColor
@@ -290,8 +316,11 @@ final class NoteCell: UICollectionViewCell {
     }
 
     private func paperTransform(pressed: Bool) -> CGAffineTransform {
-        let rotation = CGAffineTransform(rotationAngle: tilt)
-        return pressed ? rotation.scaledBy(x: 0.98, y: 0.98) : rotation
+        let lift: CGFloat = isRaised ? 1.03 : 1
+        let scale = pressed ? lift * 0.98 : lift
+        return CGAffineTransform(translationX: 0, y: isRaised ? -2 : 0)
+            .rotated(by: tilt)
+            .scaledBy(x: scale, y: scale)
     }
 
     // MARK: - Torn paper
@@ -528,5 +557,92 @@ private final class LayoutReportingView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         onLayout?()
+    }
+}
+
+// MARK: - Push pin
+
+/// A pushpin stuck through the paper: the pin leans to the right and casts a small
+/// shadow; where its point goes in, the paper has a little hole, a soft dimple
+/// and a few tiny creases.
+private final class PushPinView: UIView {
+
+    static let size = CGSize(width: 34, height: 34)
+
+    private let pin = UIImageView()
+    private let puncture = CALayer()
+    private let dimple = CAGradientLayer()
+    private let hole = CAShapeLayer()
+    private let creases = CAShapeLayer()
+
+    /// How far the pin leans to the right.
+    private let lean: CGFloat = 0.45
+    private let pinSize: CGFloat = 22
+    private var pinCenter: CGPoint { CGPoint(x: 18, y: 14) }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+
+        // Puncture, under the pin.
+        dimple.type = .radial
+        dimple.startPoint = CGPoint(x: 0.5, y: 0.5)
+        dimple.endPoint = CGPoint(x: 1, y: 1)
+        puncture.addSublayer(dimple)
+        creases.fillColor = nil
+        creases.lineWidth = 0.6
+        creases.lineCap = .round
+        puncture.addSublayer(creases)
+        puncture.addSublayer(hole)
+        layer.addSublayer(puncture)
+
+        pin.image = UIImage(systemName: "pin.fill",
+                            withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .regular))
+        pin.contentMode = .scaleAspectFit
+        pin.layer.shadowColor = UIColor.black.cgColor
+        pin.layer.shadowOpacity = 0.28
+        pin.layer.shadowRadius = 1.2
+        pin.layer.shadowOffset = CGSize(width: 1.2, height: 1.6)
+        addSubview(pin)
+        refreshColors()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+
+        pin.transform = .identity
+        pin.bounds = CGRect(x: 0, y: 0, width: pinSize, height: pinSize)
+        pin.center = pinCenter
+        pin.transform = CGAffineTransform(rotationAngle: lean)
+
+        // The point is at the bottom of the upright symbol; leaning turns it left.
+        let reach = pinSize / 2 - 0.5
+        let tip = CGPoint(x: pinCenter.x - reach * sin(lean), y: pinCenter.y + reach * cos(lean))
+
+        let area = CGRect(x: tip.x - 7, y: tip.y - 6, width: 14, height: 12)
+        puncture.frame = area
+        dimple.frame = CGRect(x: 1, y: 1.5, width: 12, height: 9)
+        let center = CGPoint(x: area.width / 2, y: area.height / 2)
+        hole.path = UIBezierPath(ovalIn: CGRect(x: center.x - 1.4, y: center.y - 1.1, width: 2.8, height: 2.2)).cgPath
+
+        let lines = UIBezierPath()
+        for (angle, length) in [(-2.4, 3.6), (-0.9, 2.9), (0.4, 3.9), (2.1, 3.2)] as [(CGFloat, CGFloat)] {
+            lines.move(to: CGPoint(x: center.x + cos(angle) * 1.8, y: center.y + sin(angle) * 1.5))
+            lines.addLine(to: CGPoint(x: center.x + cos(angle) * length, y: center.y + sin(angle) * length * 0.8))
+        }
+        creases.path = lines.cgPath
+    }
+
+    func refreshColors() {
+        let ink = UIColor.pnPrimary
+        pin.tintColor = ink
+        dimple.colors = [ink.withAlphaComponent(0.28).cgColor, ink.withAlphaComponent(0).cgColor]
+        hole.fillColor = ink.withAlphaComponent(0.85).cgColor
+        creases.strokeColor = ink.withAlphaComponent(0.2).cgColor
     }
 }
