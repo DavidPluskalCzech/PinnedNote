@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9A1B2C300000000000000A6 /* WidgetNotesSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */; };
+		C9A1B2C300000000000000A7 /* WidgetNotesSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */; };
+		C9A1B2C300000000000000A8 /* NotesWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A2 /* NotesWidgetViews.swift */; };
+		C9A1B2C300000000000000A9 /* NotesWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A2 /* NotesWidgetViews.swift */; };
+		C9A1B2C300000000000000AA /* WidgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A3 /* WidgetSync.swift */; };
+		C9A1B2C300000000000000AB /* NotesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C300000000000000A4 /* NotesWidget.swift */; };
+		C9A1B2C300000000000000AC /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C997E1542F9295BD0003B467 /* Localizable.strings */; };
+		C9A1B2C30000000000000092 /* HandDrawnBackButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000091 /* HandDrawnBackButton.swift */; };
 		C9A1B2C30000000000000086 /* TrashStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000085 /* TrashStoreTests.swift */; };
 		C9A1B2C30000000000000082 /* TrashStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000081 /* TrashStore.swift */; };
 		C9A1B2C30000000000000084 /* TrashViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000083 /* TrashViewController.swift */; };
@@ -89,6 +97,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetNotesSnapshot.swift; sourceTree = "<group>"; };
+		C9A1B2C300000000000000A2 /* NotesWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesWidgetViews.swift; sourceTree = "<group>"; };
+		C9A1B2C300000000000000A3 /* WidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSync.swift; sourceTree = "<group>"; };
+		C9A1B2C300000000000000A4 /* NotesWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesWidget.swift; sourceTree = "<group>"; };
+		C9A1B2C300000000000000A5 /* PinNoteLiveActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PinNoteLiveActivity.entitlements; sourceTree = "<group>"; };
+		C9A1B2C30000000000000091 /* HandDrawnBackButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HandDrawnBackButton.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000085 /* TrashStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashStoreTests.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000081 /* TrashStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrashStore.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000083 /* TrashViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrashViewController.swift; sourceTree = "<group>"; };
@@ -210,6 +224,8 @@
 			isa = PBXGroup;
 			children = (
 				5B38C2D9473C20D16B4BEF9D /* PinNoteLiveActivityView.swift */,
+				C9A1B2C300000000000000A4 /* NotesWidget.swift */,
+				C9A1B2C300000000000000A5 /* PinNoteLiveActivity.entitlements */,
 				8FDEF61DC34C060FA79E3FF5 /* Info.plist */,
 				666636F7D9E78AE1BA0738D9 /* Assets.xcassets */,
 			);
@@ -234,6 +250,7 @@
 			children = (
 				784CC7AC5EBC5F52AEC9FBE2 /* NoteCell.swift */,
 				C9A1B2C30000000000000041 /* MasonryLayout.swift */,
+				C9A1B2C30000000000000091 /* HandDrawnBackButton.swift */,
 				C9A1B2C30000000000000051 /* NoteActionMenuController.swift */,
 				C9A1B2C30000000000000061 /* SlantAwareTextInputs.swift */,
 				C9A1B2C30000000000000071 /* CatCompanionView.swift */,
@@ -262,6 +279,8 @@
 				A7324BFBC3217AD5643BE93B /* CreateNoteIntent.swift */,
 				C9A1B2C30000000000000001 /* NoteListItem.swift */,
 				C9A1B2C30000000000000011 /* HandDrawnCheckbox.swift */,
+				C9A1B2C300000000000000A1 /* WidgetNotesSnapshot.swift */,
+				C9A1B2C300000000000000A2 /* NotesWidgetViews.swift */,
 				C9A1B2C30000000000000021 /* AppFont.swift */,
 			);
 			path = Shared;
@@ -341,6 +360,7 @@
 				2D8C036A8B86BC1C5AEF4004 /* PurchaseManager.swift */,
 				9B5F1C2D4E6A778899AABBE4 /* ScheduledPinManager.swift */,
 				C9A1B2C30000000000000073 /* CatCompanion.swift */,
+				C9A1B2C300000000000000A3 /* WidgetSync.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -484,6 +504,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2AD3BE68595EA7323675191 /* Assets.xcassets in Resources */,
+				C9A1B2C300000000000000AC /* Localizable.strings in Resources */,
 				C9A1B2C30000000000000027 /* Kalam-Regular.ttf in Resources */,
 				C9A1B2C3000000000000002A /* Kalam-Bold.ttf in Resources */,
 				C9A1B2C3000000000000002D /* Caveat-Variable.ttf in Resources */,
@@ -510,6 +531,7 @@
 				01B07F6F9FC2111489241FC0 /* SettingsViewController.swift in Sources */,
 				BA133479C8C4F3A4A6CC8C30 /* NoteCell.swift in Sources */,
 				C9A1B2C30000000000000042 /* MasonryLayout.swift in Sources */,
+				C9A1B2C30000000000000092 /* HandDrawnBackButton.swift in Sources */,
 				C9A1B2C30000000000000052 /* NoteActionMenuController.swift in Sources */,
 				C9A1B2C30000000000000062 /* SlantAwareTextInputs.swift in Sources */,
 				C9A1B2C30000000000000072 /* CatCompanionView.swift in Sources */,
@@ -526,6 +548,9 @@
 				8CB0494EAECBD459E3A490FC /* CreateNoteIntent.swift in Sources */,
 				C9A1B2C30000000000000002 /* NoteListItem.swift in Sources */,
 				C9A1B2C30000000000000012 /* HandDrawnCheckbox.swift in Sources */,
+				C9A1B2C300000000000000A6 /* WidgetNotesSnapshot.swift in Sources */,
+				C9A1B2C300000000000000A8 /* NotesWidgetViews.swift in Sources */,
+				C9A1B2C300000000000000AA /* WidgetSync.swift in Sources */,
 				C9A1B2C30000000000000022 /* AppFont.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -549,6 +574,9 @@
 				35AA8E4DF84369D5CC206272 /* CreateNoteIntent.swift in Sources */,
 				C9A1B2C30000000000000003 /* NoteListItem.swift in Sources */,
 				C9A1B2C30000000000000013 /* HandDrawnCheckbox.swift in Sources */,
+				C9A1B2C300000000000000A7 /* WidgetNotesSnapshot.swift in Sources */,
+				C9A1B2C300000000000000A9 /* NotesWidgetViews.swift in Sources */,
+				C9A1B2C300000000000000AB /* NotesWidget.swift in Sources */,
 				C9A1B2C30000000000000023 /* AppFont.swift in Sources */,
 				AD88C053A9F6A340A41962E1 /* PinNoteLiveActivityView.swift in Sources */,
 			);
@@ -591,11 +619,12 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davethepcguy.PinNote.LiveActivity;
+				CODE_SIGN_ENTITLEMENTS = PinNoteLiveActivity/PinNoteLiveActivity.entitlements;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -610,11 +639,12 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.davethepcguy.PinNote.LiveActivity;
+				CODE_SIGN_ENTITLEMENTS = PinNoteLiveActivity/PinNoteLiveActivity.entitlements;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

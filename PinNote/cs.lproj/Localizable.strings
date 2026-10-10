@@ -112,3 +112,8 @@
 /* Storage */
 "storage_error_title" = "Problém s ukládáním poznámek";
 "storage_error_icloud_unavailable" = "Úložiště iCloud není dostupné. Zkontroluj, že je pro tuto aplikaci zapnutý iCloud Drive.";
+
+/* Widget */
+"widget_name" = "Poznámky";
+"widget_description" = "Nejnovější poznámky na první pohled.";
+"widget_empty" = "Zatím žádné poznámky";

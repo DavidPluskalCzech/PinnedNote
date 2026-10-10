@@ -417,6 +417,7 @@ struct NewNoteControl: ControlWidget {
 struct PinNoteLiveActivityBundle: WidgetBundle {
     var body: some Widget {
         PinNoteLiveActivityWidget()
+        NotesWidget()
         if #available(iOS 18.0, *) {
             NewNoteControl()
         }

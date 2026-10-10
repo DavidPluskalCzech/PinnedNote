@@ -10,6 +10,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         ThemeManager.shared.startFontSync()
+        WidgetSync.shared.start()
         return true
     }
 

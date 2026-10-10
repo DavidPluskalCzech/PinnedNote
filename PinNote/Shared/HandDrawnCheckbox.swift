@@ -49,15 +49,15 @@ enum HandDrawnCheckbox {
         return path
     }
 
-    // MARK: - Brush strokes
+    // MARK: - Brush strokes (also used by other hand-drawn marks)
 
-    private enum Segment {
+    enum Segment {
         case line(CGPoint, CGPoint)
         case quad(CGPoint, CGPoint, CGPoint)
     }
 
     /// Points about `step` apart along contiguous segments.
-    private static func sample(_ segments: [Segment], step: CGFloat) -> [CGPoint] {
+    static func sample(_ segments: [Segment], step: CGFloat) -> [CGPoint] {
         var points: [CGPoint] = []
         for segment in segments {
             let (start, control, end): (CGPoint, CGPoint, CGPoint)
@@ -84,7 +84,7 @@ enum HandDrawnCheckbox {
     /// Adds one closed outline: the left edge forward, a round cap, the right edge
     /// back and a round cap. Every stroke winds the same way, so overlapping strokes
     /// fill solid under the non-zero rule. `width` receives progress 0...1.
-    private static func addStroke(along points: [CGPoint], to path: CGMutablePath, width: (CGFloat) -> CGFloat) {
+    static func addStroke(along points: [CGPoint], to path: CGMutablePath, width: (CGFloat) -> CGFloat) {
         guard points.count > 1 else { return }
 
         var left: [CGPoint] = []

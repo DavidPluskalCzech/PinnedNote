@@ -112,3 +112,8 @@
 /* Storage */
 "storage_error_title" = "Notes storage problem";
 "storage_error_icloud_unavailable" = "iCloud storage is not available. Check that iCloud Drive is enabled for this app.";
+
+/* Widget */
+"widget_name" = "Notes";
+"widget_description" = "Your latest notes at a glance.";
+"widget_empty" = "No notes yet";

@@ -74,7 +74,7 @@ final class NoteDetailViewController: UIViewController {
     private let titleTapArea = UIControl()
     private let titleField   = NoteTitleField()
     private let textView     = NoteTextView()
-    private let backButton   = UIButton(type: .custom)
+    private let backButton   = HandDrawnBackButton()
     private let bottomBar    = NoteDetailBottomBar()
     private let doneButton   = UIButton(type: .custom)
     private let headerFadeView = UIView()
@@ -207,9 +207,6 @@ final class NoteDetailViewController: UIViewController {
     }
 
     private func setupBackButton() {
-        let cfg = UIImage.SymbolConfiguration(pointSize: 17, weight: .light)
-        let img = UIImage(systemName: "chevron.left", withConfiguration: cfg)
-        backButton.setImage(img, for: .normal)
         backButton.tintColor = .pnPrimary
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         backButton.translatesAutoresizingMaskIntoConstraints = false

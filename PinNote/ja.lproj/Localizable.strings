@@ -112,3 +112,8 @@
 /* Storage */
 "storage_error_title" = "メモの保存に問題があります";
 "storage_error_icloud_unavailable" = "iCloudストレージを利用できません。このアプリでiCloud Driveが有効になっているか確認してください。";
+
+/* Widget */
+"widget_name" = "メモ";
+"widget_description" = "最新のメモをひと目で。";
+"widget_empty" = "メモはまだありません";

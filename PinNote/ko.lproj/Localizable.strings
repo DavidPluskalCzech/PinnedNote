@@ -112,3 +112,8 @@
 /* Storage */
 "storage_error_title" = "메모 저장 문제가 발생했습니다";
 "storage_error_icloud_unavailable" = "iCloud 저장 공간을 사용할 수 없습니다. 이 앱에 iCloud Drive가 켜져 있는지 확인해 주세요.";
+
+/* Widget */
+"widget_name" = "메모";
+"widget_description" = "최신 메모를 한눈에.";
+"widget_empty" = "아직 메모가 없습니다";
