@@ -6,7 +6,8 @@ final class NoteListViewController: UIViewController {
     // MARK: - Subviews
 
     private let titleLabel   = UILabel()
-    private let tableView    = UITableView()
+    private let masonryLayout = MasonryLayout()
+    private lazy var collectionView = UICollectionView(frame: .zero, collectionViewLayout: masonryLayout)
     private let bottomBar    = NoteListBottomBar()
     private let emptyState   = EmptyStateView()
     private let trialBanner  = TrialExpiredBannerView()
@@ -16,23 +17,15 @@ final class NoteListViewController: UIViewController {
     // MARK: - State
 
     private var isInEditMode = false
-    private var isSwipeActionOpen = false
-    private var quickPinPanIndexPath: IndexPath?
-    private var quickPinPanMovedLeft = false
-    private var quickPinPanDidPin = false
-    private let quickPinRevealThreshold: CGFloat = 56
-    private var suppressSelectionUntil: Date?
     private var selectedIDs  = Set<UUID>()
     private var cancellables = Set<AnyCancellable>()
 
     private var tableTopNoBanner:   NSLayoutConstraint!
     private var tableTopWithBanner: NSLayoutConstraint!
-    private lazy var quickPinPanGesture: UIPanGestureRecognizer = {
-        let gesture = UIPanGestureRecognizer(target: self, action: #selector(handleQuickPinPan(_:)))
-        gesture.cancelsTouchesInView = false
-        gesture.delegate = self
-        return gesture
-    }()
+
+    /// Off-screen tile used to measure heights for the masonry layout.
+    private let sizingCell = NoteCell(frame: CGRect(x: 0, y: 0, width: 200, height: 200))
+    private var tileHeightCache: [String: CGFloat] = [:]
 
     // MARK: - Lifecycle
 
@@ -65,7 +58,7 @@ final class NoteListViewController: UIViewController {
         super.viewWillAppear(animated)
         // Sync displayedIDs so applyDiff has a correct baseline after returning from detail
         displayedIDs = NoteStore.shared.notes.map { $0.id }
-        tableView.reloadData()
+        collectionView.reloadData()
         refreshEmptyState()
     }
 
@@ -85,22 +78,18 @@ final class NoteListViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
-        // Table
-        tableView.backgroundColor              = .pnBackground
-        tableView.register(NoteCell.self, forCellReuseIdentifier: NoteCell.reuseID)
-        tableView.dataSource                   = self
-        tableView.delegate                     = self
-        tableView.separatorStyle               = .none
-        tableView.rowHeight                    = UITableView.automaticDimension
-        tableView.estimatedRowHeight           = 90
-        tableView.allowsMultipleSelectionDuringEditing = true
-        tableView.contentInsetAdjustmentBehavior = .automatic
-        tableView.contentInset                 = UIEdgeInsets(top: 38, left: 0, bottom: 80, right: 0)
-        tableView.scrollIndicatorInsets        = UIEdgeInsets(top: 38, left: 0, bottom: 80, right: 0)
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(tableView)
-
-        tableView.addGestureRecognizer(quickPinPanGesture)
+        // Two-column grid of note tiles
+        masonryLayout.delegate                      = self
+        collectionView.backgroundColor              = .pnBackground
+        collectionView.register(NoteCell.self, forCellWithReuseIdentifier: NoteCell.reuseID)
+        collectionView.dataSource                   = self
+        collectionView.delegate                     = self
+        collectionView.alwaysBounceVertical         = true
+        collectionView.contentInsetAdjustmentBehavior = .automatic
+        collectionView.contentInset                 = UIEdgeInsets(top: 38, left: 0, bottom: 80, right: 0)
+        collectionView.scrollIndicatorInsets        = UIEdgeInsets(top: 38, left: 0, bottom: 80, right: 0)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(collectionView)
 
         // Softens the handoff from the solid title area into scrolling notes.
         headerFadeView.isUserInteractionEnabled = false
@@ -125,8 +114,8 @@ final class NoteListViewController: UIViewController {
         view.addSubview(emptyState)
         emptyState.onCreateNote = { [weak self] in self?.openNewNote() }
 
-        tableTopNoBanner   = tableView.topAnchor.constraint(equalTo: headerFadeView.topAnchor)
-        tableTopWithBanner = tableView.topAnchor.constraint(equalTo: trialBanner.bottomAnchor, constant: 4)
+        tableTopNoBanner   = collectionView.topAnchor.constraint(equalTo: headerFadeView.topAnchor)
+        tableTopWithBanner = collectionView.topAnchor.constraint(equalTo: trialBanner.bottomAnchor, constant: 4)
         tableTopNoBanner.isActive = true
 
         NSLayoutConstraint.activate([
@@ -146,9 +135,9 @@ final class NoteListViewController: UIViewController {
             bottomBar.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor),
             bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
-            tableView.leadingAnchor.constraint(equalTo: readableGuide.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: readableGuide.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             emptyState.centerXAnchor.constraint(equalTo: readableGuide.centerXAnchor),
             emptyState.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -40),
@@ -196,16 +185,18 @@ final class NoteListViewController: UIViewController {
 
         guard oldIDs != newIDs else {
             // Same order/count — just reload visible cells to refresh content (e.g. date)
-            tableView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
-                guard let ip = tableView.indexPath(for: cell),
-                      ip.row < newNotes.count else { return }
-                let note = newNotes[ip.row]
+            collectionView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
+                guard let ip = collectionView.indexPath(for: cell),
+                      ip.item < newNotes.count else { return }
+                let note = newNotes[ip.item]
                 cell.configure(
                     with: note,
                     editing: isInEditMode,
                     selected: selectedIDs.contains(note.id)
                 )
             }
+            // Pinning or a schedule can change a tile's height.
+            masonryLayout.invalidateLayout()
             refreshEmptyState()
             refreshSelectionControls()
             return
@@ -217,15 +208,9 @@ final class NoteListViewController: UIViewController {
            let deletedRow = oldIDs.firstIndex(of: deletedID) {
             pendingAnimatedDeletionID = nil
             displayedIDs = newIDs
-            let indexPath = IndexPath(row: deletedRow, section: 0)
-            UIView.animate(
-                withDuration: 0.38,
-                delay: 0,
-                options: [.curveEaseInOut, .allowUserInteraction]
-            ) {
-                self.tableView.performBatchUpdates {
-                    self.tableView.deleteRows(at: [indexPath], with: .fade)
-                }
+            let indexPath = IndexPath(item: deletedRow, section: 0)
+            collectionView.performBatchUpdates {
+                self.collectionView.deleteItems(at: [indexPath])
             } completion: { _ in
                 self.refreshEmptyState()
                 self.refreshSelectionControls()
@@ -236,7 +221,7 @@ final class NoteListViewController: UIViewController {
         pendingAnimatedDeletionID = nil
         displayedIDs = newIDs
 
-        tableView.reloadData()
+        collectionView.reloadData()
         refreshEmptyState()
         refreshSelectionControls()
     }
@@ -280,7 +265,7 @@ final class NoteListViewController: UIViewController {
     private func refreshEmptyState() {
         let empty = NoteStore.shared.notes.isEmpty
         emptyState.isHidden = !empty
-        tableView.isHidden  = empty
+        collectionView.isHidden  = empty
     }
 
     // MARK: - Actions
@@ -315,47 +300,21 @@ final class NoteListViewController: UIViewController {
 
         isInEditMode = editing
         selectedIDs.removeAll()
-        tableView.setEditing(false, animated: false)
-        tableView.endEditing(true)
-        // Do NOT use tableView.setEditing — that shows the system's native circles.
-        // Drive edit-mode UI entirely through the cell's own selection state.
-        tableView.reloadData()
-        tableView.layoutIfNeeded()
-        syncVisibleSelectionCells(animated: false)
+        // Edit mode swaps status icons for selection rings, which can change tile heights.
+        collectionView.reloadData()
+        masonryLayout.invalidateLayout()
+        collectionView.layoutIfNeeded()
         bottomBar.setEditMode(isInEditMode)
         refreshSelectionControls()
     }
 
     private func syncVisibleSelectionCells(animated: Bool) {
-        visibleSelectionIndexPaths().forEach { indexPath in
-            guard let cell = tableView.cellForRow(at: indexPath) as? NoteCell else { return }
-            let note = NoteStore.shared.notes[indexPath.row]
-            if animated {
-                cell.configure(with: note)
-                cell.setSelectionState(
-                    editing: isInEditMode,
-                    selected: selectedIDs.contains(note.id),
-                    animated: true
-                )
-            } else {
-                cell.configure(
-                    with: note,
-                    editing: isInEditMode,
-                    selected: selectedIDs.contains(note.id)
-                )
-            }
+        let notes = NoteStore.shared.notes
+        collectionView.indexPathsForVisibleItems.forEach { indexPath in
+            guard indexPath.item < notes.count,
+                  let cell = collectionView.cellForItem(at: indexPath) as? NoteCell else { return }
+            cell.applySelected(selectedIDs.contains(notes[indexPath.item].id), animated: animated)
         }
-    }
-
-    private func visibleSelectionIndexPaths() -> [IndexPath] {
-        let expandedBounds = tableView.bounds.insetBy(dx: 0, dy: -120)
-        let visible = tableView.indexPathsForVisibleRows ?? []
-        let nearVisible = tableView.indexPathsForRows(in: expandedBounds) ?? []
-        let rowCount = NoteStore.shared.notes.count
-        let unique = Set(visible + nearVisible)
-        return unique
-            .filter { $0.section == 0 && $0.row >= 0 && $0.row < rowCount }
-            .sorted { $0.row < $1.row }
     }
 
     private func toggleSelectAll() {
@@ -406,72 +365,6 @@ final class NoteListViewController: UIViewController {
         )
     }
 
-    @objc private func handleQuickPinPan(_ gesture: UIPanGestureRecognizer) {
-        switch gesture.state {
-        case .began:
-            quickPinPanIndexPath = nil
-            quickPinPanMovedLeft = false
-            quickPinPanDidPin = false
-
-            guard !isInEditMode, !isSwipeActionOpen else { return }
-            let location = gesture.location(in: tableView)
-            quickPinPanIndexPath = tableView.indexPathForRow(at: location)
-
-        case .changed:
-            guard !quickPinPanDidPin,
-                  !quickPinPanMovedLeft,
-                  let indexPath = quickPinPanIndexPath,
-                  indexPath.row < NoteStore.shared.notes.count,
-                  let cell = tableView.cellForRow(at: indexPath) as? NoteCell else { return }
-
-            let translation = gesture.translation(in: tableView)
-            let horizontalDistance = abs(translation.x)
-            let verticalDistance = abs(translation.y)
-
-            if translation.x < -12 {
-                quickPinPanMovedLeft = true
-                cell.resetQuickPinReveal(animated: true)
-                return
-            }
-
-            guard horizontalDistance > verticalDistance * 1.4 else { return }
-
-            let note = NoteStore.shared.notes[indexPath.row]
-            cell.setQuickPinRevealPinnedState(note.isPinned)
-            let progress = max(0, min(translation.x / quickPinRevealThreshold, 1))
-            cell.setQuickPinRevealProgress(progress)
-
-            guard translation.x >= quickPinRevealThreshold else { return }
-
-            quickPinPanDidPin = true
-            if canTogglePinFromList(note) {
-                suppressSelectionUntil = Date().addingTimeInterval(0.8)
-                cell.completeQuickPinReveal { [weak self] in
-                    guard let self else { return }
-                    Task { @MainActor in
-                        await self.commitPinToggleFromList(note)
-                        self.refreshQuickPinnedRow(at: indexPath)
-                    }
-                }
-            } else {
-                cell.resetQuickPinReveal(animated: true)
-            }
-
-        case .ended, .cancelled, .failed:
-            if !quickPinPanDidPin,
-               let indexPath = quickPinPanIndexPath,
-               let cell = tableView.cellForRow(at: indexPath) as? NoteCell {
-                cell.resetQuickPinReveal(animated: true)
-            }
-            quickPinPanIndexPath = nil
-            quickPinPanMovedLeft = false
-            quickPinPanDidPin = false
-
-        default:
-            break
-        }
-    }
-
     @objc private func refreshTrialBanner() {
         let pm = PurchaseManager.shared
         let showBanner = !pm.isPro && !pm.isTrialActive
@@ -479,8 +372,8 @@ final class NoteListViewController: UIViewController {
         trialBanner.isHidden        = !showBanner
         headerFadeView.isHidden = showBanner
         let topInset: CGFloat = showBanner ? 12 : 38
-        tableView.contentInset.top = topInset
-        tableView.scrollIndicatorInsets = UIEdgeInsets(top: topInset, left: 0, bottom: 80, right: 0)
+        collectionView.contentInset.top = topInset
+        collectionView.scrollIndicatorInsets = UIEdgeInsets(top: topInset, left: 0, bottom: 80, right: 0)
         tableTopNoBanner.isActive   = !showBanner
         tableTopWithBanner.isActive = showBanner
         UIView.animate(withDuration: 0.3) { self.view.layoutIfNeeded() }
@@ -512,12 +405,14 @@ final class NoteListViewController: UIViewController {
     }
 
     @objc private func fontChanged() {
-        tableView.reloadData()
+        tileHeightCache.removeAll()
+        collectionView.reloadData()
+        masonryLayout.invalidateLayout()
     }
 
     @objc private func applyTheme() {
         view.backgroundColor      = .pnBackground
-        tableView.backgroundColor = .pnBackground
+        collectionView.backgroundColor = .pnBackground
         refreshHeaderFade()
         bottomBar.refreshColors()
         trialBanner.refreshColors()
@@ -529,7 +424,9 @@ final class NoteListViewController: UIViewController {
             .strokeColor: UIColor.pnPrimary,
             .strokeWidth: -3.5,
         ])
-        tableView.reloadData()
+        tileHeightCache.removeAll()
+        collectionView.reloadData()
+        masonryLayout.invalidateLayout()
     }
 
     private func refreshHeaderFade() {
@@ -600,18 +497,6 @@ final class NoteListViewController: UIViewController {
         PinStatusToast.show(in: view, pinned: true)
     }
 
-    private func refreshQuickPinnedRow(at indexPath: IndexPath) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            guard indexPath.row < NoteStore.shared.notes.count else {
-                self.tableView.reloadData()
-                return
-            }
-            UIView.performWithoutAnimation {
-                self.tableView.reloadRows(at: [indexPath], with: .none)
-            }
-        }
-    }
 
     private func showUpgradePrompt() {
         presentPNAlert(
@@ -627,40 +512,56 @@ final class NoteListViewController: UIViewController {
     }
 }
 
-// MARK: - UITableViewDataSource
+// MARK: - UICollectionViewDataSource
 
-extension NoteListViewController: UITableViewDataSource {
+extension NoteListViewController: UICollectionViewDataSource {
 
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         NoteStore.shared.notes.count
     }
 
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: NoteCell.reuseID, for: indexPath) as! NoteCell
-        guard indexPath.row < NoteStore.shared.notes.count else { return cell }
-        let note = NoteStore.shared.notes[indexPath.row]
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: NoteCell.reuseID, for: indexPath) as! NoteCell
+        guard indexPath.item < NoteStore.shared.notes.count else { return cell }
+        let note = NoteStore.shared.notes[indexPath.item]
         cell.configure(with: note, editing: isInEditMode, selected: selectedIDs.contains(note.id))
         return cell
     }
-
 }
 
-// MARK: - UITableViewDelegate
+// MARK: - MasonryLayoutDelegate
 
-extension NoteListViewController: UITableViewDelegate {
+extension NoteListViewController: MasonryLayoutDelegate {
 
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: false)
-        if let suppressSelectionUntil {
-            if Date() < suppressSelectionUntil {
-                self.suppressSelectionUntil = nil
-                return
-            }
-            self.suppressSelectionUntil = nil
-        }
+    func masonryLayout(_ layout: MasonryLayout, heightForItemAt indexPath: IndexPath, itemWidth: CGFloat) -> CGFloat {
+        let notes = NoteStore.shared.notes
+        guard indexPath.item < notes.count else { return 0 }
+        let note = notes[indexPath.item]
 
-        guard indexPath.row < NoteStore.shared.notes.count else { return }
-        let note = NoteStore.shared.notes[indexPath.row]
+        // Anything that changes the tile's content or layout is part of the key.
+        let scheduled = (note.scheduledPinDate ?? .distantPast) > Date()
+        let key = "\(note.id)|\(note.modifiedAt.timeIntervalSince1970)|\(note.title.hashValue)|\(note.content.hashValue)|\(note.isPinned)|\(scheduled)|\(isInEditMode)|\(itemWidth)"
+        if let cached = tileHeightCache[key] { return cached }
+
+        sizingCell.configure(with: note, editing: isInEditMode, selected: false)
+        let height = sizingCell.contentView.systemLayoutSizeFitting(
+            CGSize(width: itemWidth, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        tileHeightCache[key] = height
+        return height
+    }
+}
+
+// MARK: - UICollectionViewDelegate
+
+extension NoteListViewController: UICollectionViewDelegate {
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        collectionView.deselectItem(at: indexPath, animated: false)
+        guard indexPath.item < NoteStore.shared.notes.count else { return }
+        let note = NoteStore.shared.notes[indexPath.item]
 
         if isInEditMode {
             // Toggle selection manually
@@ -669,7 +570,7 @@ extension NoteListViewController: UITableViewDelegate {
             } else {
                 selectedIDs.insert(note.id)
             }
-            if let cell = tableView.cellForRow(at: indexPath) as? NoteCell {
+            if let cell = collectionView.cellForItem(at: indexPath) as? NoteCell {
                 cell.applySelected(selectedIDs.contains(note.id))
             }
             refreshSelectionControls()
@@ -679,59 +580,68 @@ extension NoteListViewController: UITableViewDelegate {
         }
     }
 
-    func tableView(
-        _ tableView: UITableView,
-        trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
-    ) -> UISwipeActionsConfiguration? {
-        guard !isInEditMode else { return nil }
+    // Long press: pin or unpin, delete.
+    func collectionView(
+        _ collectionView: UICollectionView,
+        contextMenuConfigurationForItemsAt indexPaths: [IndexPath],
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard !isInEditMode,
+              let indexPath = indexPaths.first,
+              indexPath.item < NoteStore.shared.notes.count else { return nil }
+        let noteID = NoteStore.shared.notes[indexPath.item].id
 
-        let action = UIContextualAction(style: .destructive, title: nil) { _, _, done in
-            guard indexPath.row < NoteStore.shared.notes.count else {
-                done(false)
-                return
+        return UIContextMenuConfiguration(identifier: noteID.uuidString as NSString, previewProvider: nil) { [weak self] _ in
+            guard let self,
+                  let note = NoteStore.shared.notes.first(where: { $0.id == noteID }) else { return nil }
+
+            let pin = UIAction(
+                title: NSLocalizedString(note.isPinned ? "detail_toolbar_unpin" : "detail_toolbar_pin", comment: ""),
+                image: UIImage(systemName: note.isPinned ? "pin.slash" : "pin")
+            ) { [weak self] _ in
+                guard let self, self.canTogglePinFromList(note) else { return }
+                Task { @MainActor in await self.commitPinToggleFromList(note) }
             }
-            let note = NoteStore.shared.notes[indexPath.row]
-            if note.isPinned { LiveActivityManager.shared.stop() }
-            ScheduledPinManager.shared.removeNotificationBackup(noteID: note.id)
-            self.pendingAnimatedDeletionID = note.id
-            NoteStore.shared.delete(id: note.id)
-            done(true)
+
+            let delete = UIAction(
+                title: NSLocalizedString("detail_toolbar_delete", comment: ""),
+                image: UIImage(systemName: "trash"),
+                attributes: .destructive
+            ) { [weak self] _ in
+                guard let self else { return }
+                if note.isPinned { LiveActivityManager.shared.stop() }
+                ScheduledPinManager.shared.removeNotificationBackup(noteID: note.id)
+                self.pendingAnimatedDeletionID = note.id
+                NoteStore.shared.delete(id: note.id)
+            }
+
+            return UIMenu(children: [pin, delete])
         }
-        action.image           = UIImage(systemName: "trash")
-        action.backgroundColor = .pnDestructive
-        return UISwipeActionsConfiguration(actions: [action])
     }
 
-    func tableView(_ tableView: UITableView, willBeginEditingRowAt indexPath: IndexPath) {
-        isSwipeActionOpen = true
+    func collectionView(
+        _ collectionView: UICollectionView,
+        contextMenuConfiguration configuration: UIContextMenuConfiguration,
+        highlightPreviewForItemAt indexPath: IndexPath
+    ) -> UITargetedPreview? {
+        tilePreview(at: indexPath)
     }
 
-    func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?) {
-        isSwipeActionOpen = false
-    }
-}
-
-// MARK: - UIGestureRecognizerDelegate
-
-extension NoteListViewController: UIGestureRecognizerDelegate {
-
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
-
-        let velocity = pan.velocity(in: tableView)
-        if gestureRecognizer === quickPinPanGesture {
-            guard !isInEditMode, !isSwipeActionOpen else { return false }
-            return velocity.x > 0 && abs(velocity.x) > abs(velocity.y) * 1.2
-        }
-
-        return true
+    func collectionView(
+        _ collectionView: UICollectionView,
+        contextMenuConfiguration configuration: UIContextMenuConfiguration,
+        dismissalPreviewForItemAt indexPath: IndexPath
+    ) -> UITargetedPreview? {
+        tilePreview(at: indexPath)
     }
 
-    func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
-    ) -> Bool {
-        return true
+    /// Lifts the tile with its rounded corners instead of a square snapshot.
+    private func tilePreview(at indexPath: IndexPath) -> UITargetedPreview? {
+        guard let cell = collectionView.cellForItem(at: indexPath) as? NoteCell else { return nil }
+        let parameters = UIPreviewParameters()
+        parameters.visiblePath = cell.previewPath
+        parameters.backgroundColor = .clear
+        return UITargetedPreview(view: cell.contentView, parameters: parameters)
     }
 }
 

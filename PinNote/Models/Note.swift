@@ -48,13 +48,19 @@ struct Note: Codable, Identifiable {
         return first.isEmpty ? "—" : first
     }
 
-    /// Up to 3 lines after the title, for the cell preview
+    /// Up to 3 lines after the title
     var previewBody: String {
+        previewBody(maxLines: 3)
+    }
+
+    /// Up to `maxLines` non-empty lines after the title, for the list tile preview
+    func previewBody(maxLines: Int) -> String {
         let lines = content
             .components(separatedBy: "\n")
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let hasExplicitTitle = !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return (hasExplicitTitle ? lines.prefix(3) : lines.dropFirst().prefix(3)).joined(separator: "\n")
+        let body = hasExplicitTitle ? lines[...] : lines.dropFirst()
+        return body.prefix(maxLines).joined(separator: "\n")
     }
 
     var isEmpty: Bool {

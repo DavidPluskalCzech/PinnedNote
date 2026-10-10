@@ -1,23 +1,38 @@
 import UIKit
 
-final class NoteCell: UITableViewCell {
+/// A note tile in the two-column list. Its height follows the content: the title
+/// and up to `maxBodyLines` lines of the note, so short notes give low tiles.
+final class NoteCell: UICollectionViewCell {
 
     static let reuseID = "NoteCell"
 
+    /// Longest body a tile shows; longer notes end with an ellipsis.
+    static let maxBodyLines = 10
+
     // MARK: - Layout constants
 
-    private let hMargin:  CGFloat = 16   // horizontal gap from screen edge to card
-    private let vMargin:  CGFloat = 6    // vertical gap between cards
-    private let cardRadius: CGFloat = 12
+    private let padding: CGFloat = 14
+    /// How deep the torn edges bite into the paper: the top, torn off the pad, the
+    /// most; the other sides less.
+    private let topTearDepth: CGFloat = 8
+    private let sideTearDepth: CGFloat = 5
+    private let selectionSize: CGFloat = 22
 
     // MARK: - Subviews
 
-    private let quickPinRevealView = UIView()
-    private let quickPinCircle     = UIView()
-    private let quickPinIcon       = UIImageView()
-
-    /// The visible rounded card — all content lives inside this.
+    /// Holds the paper and its shadow; carries the slight per-note tilt.
+    private let paperView    = UIView()
+    /// The torn-off sheet — all content lives inside this.
     private let cardView     = UIView()
+    private let paperMask    = CAShapeLayer()
+    /// The paper's face, inset from the torn outline by an uneven strip: the
+    /// cardView's own color shows in that strip as the white torn-off fibres.
+    private let paperFace    = CAShapeLayer()
+
+    /// Per-note shape: the torn edge and tilt come from the note's ID, so every
+    /// sheet looks different but stays the same across reloads.
+    private var paperSeed: UInt64 = 0
+    private var tilt: CGFloat = 0
 
     private let leftAccent   = UIView()
     private let titleLabel   = UILabel()
@@ -26,20 +41,18 @@ final class NoteCell: UITableViewCell {
     private let timerIcon    = UIImageView()
     private let statusStack  = UIStackView()
 
-    // Custom multi-select indicator
+    // Custom multi-select indicator, shown in place of the status icons
+    private let selectionIndicator = UIView()
     private let selectionRing = UIView()
     private let selectionFill = UIView()
 
-    // Shifts text right when selection ring is visible
-    private var textLeadingConstraint: NSLayoutConstraint!
     private var selectionEditing = false
     private var selectionSelected = false
-    private var selectionStateVersion = 0
 
     // MARK: - Init
 
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
+    override init(frame: CGRect) {
+        super.init(frame: frame)
         buildLayout()
     }
     required init?(coder: NSCoder) { fatalError() }
@@ -47,59 +60,23 @@ final class NoteCell: UITableViewCell {
     // MARK: - Layout
 
     private func buildLayout() {
-        backgroundColor             = .pnBackground
-        contentView.backgroundColor = .pnBackground
-        selectionStyle              = .none
+        backgroundColor             = .clear
+        contentView.backgroundColor = .clear
 
-        // Quick pin reveal shown behind the card during a short right swipe.
-        quickPinRevealView.backgroundColor = .clear
-        quickPinRevealView.alpha = 0
-        quickPinRevealView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(quickPinRevealView)
+        paperView.translatesAutoresizingMaskIntoConstraints = false
+        paperView.layer.shadowColor  = UIColor.black.cgColor
+        // A soft shadow below, as if the paper lies on a desk.
+        paperView.layer.shadowOffset = CGSize(width: 0, height: 3)
+        paperView.layer.shadowRadius = 6
+        contentView.addSubview(paperView)
 
-        quickPinCircle.backgroundColor = .systemBlue
-        quickPinCircle.layer.cornerRadius = 23
-        quickPinCircle.translatesAutoresizingMaskIntoConstraints = false
-        quickPinRevealView.addSubview(quickPinCircle)
-
-        let quickPinCfg = UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)
-        quickPinIcon.image = UIImage(systemName: "pin.fill", withConfiguration: quickPinCfg)
-        quickPinIcon.tintColor = .white
-        quickPinIcon.contentMode = .scaleAspectFit
-        quickPinIcon.translatesAutoresizingMaskIntoConstraints = false
-        quickPinCircle.addSubview(quickPinIcon)
-
-        // Card
-        cardView.backgroundColor        = .pnSurface
-        cardView.layer.cornerRadius     = cardRadius
-        cardView.layer.cornerCurve      = .continuous
-        cardView.layer.masksToBounds    = true
+        cardView.backgroundColor        = paperRimColor
+        cardView.layer.mask             = paperMask
+        cardView.layer.insertSublayer(paperFace, at: 0)
         cardView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(cardView)
+        paperView.addSubview(cardView)
 
-        NSLayoutConstraint.activate([
-            quickPinRevealView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: vMargin),
-            quickPinRevealView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -vMargin),
-            quickPinRevealView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: hMargin),
-            quickPinRevealView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -hMargin),
-
-            quickPinCircle.leadingAnchor.constraint(equalTo: quickPinRevealView.leadingAnchor, constant: 22),
-            quickPinCircle.centerYAnchor.constraint(equalTo: quickPinRevealView.centerYAnchor),
-            quickPinCircle.widthAnchor.constraint(equalToConstant: 46),
-            quickPinCircle.heightAnchor.constraint(equalToConstant: 46),
-
-            quickPinIcon.centerXAnchor.constraint(equalTo: quickPinCircle.centerXAnchor),
-            quickPinIcon.centerYAnchor.constraint(equalTo: quickPinCircle.centerYAnchor),
-            quickPinIcon.widthAnchor.constraint(equalToConstant: 22),
-            quickPinIcon.heightAnchor.constraint(equalToConstant: 22),
-
-            cardView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: vMargin),
-            cardView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -vMargin),
-            cardView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: hMargin),
-            cardView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -hMargin),
-        ])
-
-        // Left accent bar — clipped by cardView's corner mask
+        // Left accent bar for the pinned note — clipped by the paper's outline
         leftAccent.backgroundColor = .pnPrimary
         leftAccent.translatesAutoresizingMaskIntoConstraints = false
         cardView.addSubview(leftAccent)
@@ -109,99 +86,93 @@ final class NoteCell: UITableViewCell {
         pinIcon.image               = UIImage(systemName: "pin.fill", withConfiguration: pinCfg)
         pinIcon.tintColor           = .pnPrimary
         pinIcon.contentMode         = .scaleAspectFit
-        pinIcon.translatesAutoresizingMaskIntoConstraints = false
 
         let timerCfg = UIImage.SymbolConfiguration(pointSize: 10, weight: .regular)
         timerIcon.image               = UIImage(systemName: "timer.circle.fill", withConfiguration: timerCfg)
         timerIcon.tintColor           = .pnPrimary
         timerIcon.contentMode         = .scaleAspectFit
-        timerIcon.translatesAutoresizingMaskIntoConstraints = false
 
         statusStack.axis = .horizontal
         statusStack.alignment = .center
         statusStack.spacing = 5
-        statusStack.translatesAutoresizingMaskIntoConstraints = false
         statusStack.addArrangedSubview(timerIcon)
         statusStack.addArrangedSubview(pinIcon)
-        cardView.addSubview(statusStack)
+
+        // Selection ring + fill
+        selectionRing.layer.cornerRadius = selectionSize / 2
+        selectionRing.layer.borderWidth  = 1.5
+        selectionRing.layer.borderColor  = UIColor.pnPrimary.cgColor
+        selectionRing.translatesAutoresizingMaskIntoConstraints = false
+        selectionIndicator.addSubview(selectionRing)
+
+        let fillSize = selectionSize - 8
+        selectionFill.layer.cornerRadius = fillSize / 2
+        selectionFill.backgroundColor    = .pnPrimary
+        selectionFill.translatesAutoresizingMaskIntoConstraints = false
+        selectionIndicator.addSubview(selectionFill)
+        selectionIndicator.isHidden = true
 
         // Title
-        titleLabel.font          = PN.font(18, bold: true)
         titleLabel.textColor     = .pnPrimary
-        titleLabel.numberOfLines = 2
+        titleLabel.numberOfLines = 3
         titleLabel.lineBreakMode = .byTruncatingTail
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        cardView.addSubview(titleLabel)
+        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        // Title row: title on the left, status icons or the selection ring on the right
+        let titleRow = UIStackView(arrangedSubviews: [titleLabel, statusStack, selectionIndicator])
+        titleRow.axis = .horizontal
+        titleRow.alignment = .top
+        titleRow.spacing = 6
 
         // Body preview
-        bodyLabel.font          = PN.font(14, bold: true)
         bodyLabel.textColor     = .pnPrimary
-        bodyLabel.numberOfLines = 4
+        bodyLabel.numberOfLines = Self.maxBodyLines
         bodyLabel.lineBreakMode = .byTruncatingTail
-        bodyLabel.translatesAutoresizingMaskIntoConstraints = false
-        cardView.addSubview(bodyLabel)
 
-        // Selection ring
-        let ringSize: CGFloat = 22
-        selectionRing.isHidden           = false
-        selectionRing.alpha              = 0
-        selectionRing.layer.cornerRadius  = ringSize / 2
-        selectionRing.layer.borderWidth   = 1.5
-        selectionRing.layer.borderColor   = UIColor.pnPrimary.cgColor
-        selectionRing.backgroundColor     = .clear
-        selectionRing.translatesAutoresizingMaskIntoConstraints = false
-        cardView.addSubview(selectionRing)
+        let textStack = UIStackView(arrangedSubviews: [titleRow, bodyLabel])
+        textStack.axis = .vertical
+        textStack.spacing = 4
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+        cardView.addSubview(textStack)
 
-        // Selection fill
-        let fillSize: CGFloat = ringSize - 8
-        selectionFill.isHidden           = false
-        selectionFill.alpha              = 0
-        selectionFill.layer.cornerRadius  = fillSize / 2
-        selectionFill.backgroundColor     = .pnPrimary
-        selectionFill.translatesAutoresizingMaskIntoConstraints = false
-        cardView.addSubview(selectionFill)
-
-        let p = PN.padding
-        textLeadingConstraint = titleLabel.leadingAnchor.constraint(
-            equalTo: leftAccent.trailingAnchor, constant: p
-        )
-
+        let p = padding
         NSLayoutConstraint.activate([
-            // Accent bar
-            leftAccent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor),
+            paperView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            paperView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            paperView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            paperView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+
+            cardView.topAnchor.constraint(equalTo: paperView.topAnchor),
+            cardView.bottomAnchor.constraint(equalTo: paperView.bottomAnchor),
+            cardView.leadingAnchor.constraint(equalTo: paperView.leadingAnchor),
+            cardView.trailingAnchor.constraint(equalTo: paperView.trailingAnchor),
+
+            // Inside the torn left edge, so the tear never eats into the bar.
+            leftAccent.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: sideTearDepth),
             leftAccent.topAnchor.constraint(equalTo: cardView.topAnchor),
             leftAccent.bottomAnchor.constraint(equalTo: cardView.bottomAnchor),
             leftAccent.widthAnchor.constraint(equalToConstant: 4),
 
-            // Selection ring
-            selectionRing.leadingAnchor.constraint(equalTo: leftAccent.trailingAnchor, constant: 10),
-            selectionRing.centerYAnchor.constraint(equalTo: cardView.centerYAnchor),
-            selectionRing.widthAnchor.constraint(equalToConstant: ringSize),
-            selectionRing.heightAnchor.constraint(equalToConstant: ringSize),
-
-            // Selection fill
-            selectionFill.centerXAnchor.constraint(equalTo: selectionRing.centerXAnchor),
-            selectionFill.centerYAnchor.constraint(equalTo: selectionRing.centerYAnchor),
-            selectionFill.widthAnchor.constraint(equalToConstant: fillSize),
-            selectionFill.heightAnchor.constraint(equalToConstant: fillSize),
-
-            // Status icons
-            statusStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -p),
-            statusStack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: p),
             pinIcon.widthAnchor.constraint(equalToConstant: 12),
             pinIcon.heightAnchor.constraint(equalToConstant: 12),
             timerIcon.widthAnchor.constraint(equalToConstant: 13),
             timerIcon.heightAnchor.constraint(equalToConstant: 13),
 
-            // Text block
-            textLeadingConstraint,
-            titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: statusStack.leadingAnchor, constant: -8),
+            selectionIndicator.widthAnchor.constraint(equalToConstant: selectionSize),
+            selectionIndicator.heightAnchor.constraint(equalToConstant: selectionSize),
+            selectionRing.topAnchor.constraint(equalTo: selectionIndicator.topAnchor),
+            selectionRing.bottomAnchor.constraint(equalTo: selectionIndicator.bottomAnchor),
+            selectionRing.leadingAnchor.constraint(equalTo: selectionIndicator.leadingAnchor),
+            selectionRing.trailingAnchor.constraint(equalTo: selectionIndicator.trailingAnchor),
+            selectionFill.centerXAnchor.constraint(equalTo: selectionIndicator.centerXAnchor),
+            selectionFill.centerYAnchor.constraint(equalTo: selectionIndicator.centerYAnchor),
+            selectionFill.widthAnchor.constraint(equalToConstant: fillSize),
+            selectionFill.heightAnchor.constraint(equalToConstant: fillSize),
 
-            bodyLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            bodyLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -p),
-            bodyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 3),
-            bodyLabel.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -12),
+            textStack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: p + topTearDepth),
+            textStack.leadingAnchor.constraint(equalTo: leftAccent.trailingAnchor, constant: p - 4),
+            textStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -(p + sideTearDepth)),
+            textStack.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -(p + sideTearDepth)),
         ])
     }
 
@@ -209,16 +180,31 @@ final class NoteCell: UITableViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        resetSelectionIndicator()
-        resetQuickPinReveal(animated: false)
+        paperView.transform = .identity
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let path = Self.tornPaperPath(
+            in: cardView.bounds, topDepth: topTearDepth, sideDepth: sideTearDepth, seed: paperSeed
+        )
+        paperMask.path = path.cgPath
+        // Its own tear, a little inside the outline, so the fibre strip varies in width.
+        paperFace.path = Self.tornPaperPath(
+            in: cardView.bounds.insetBy(dx: 2.5, dy: 2.5), topDepth: 8, sideDepth: 6,
+            seed: paperSeed &* 0x2545_F491_4F6C_DD1D ^ 0xA5A5
+        ).cgPath
+        paperView.layer.shadowPath = path.cgPath
     }
 
     func configure(with note: Note, editing: Bool, selected: Bool) {
-        configure(with: note)
-        setSelectionState(editing: editing, selected: selected, animated: false)
-    }
+        paperSeed = withUnsafeBytes(of: note.id.uuid) { $0.load(as: UInt64.self) }
+        // Up to about ±1° either way.
+        tilt = (CGFloat(paperSeed % 1000) / 1000 - 0.5) * 0.035
+        paperView.transform = paperTransform(pressed: isHighlighted)
+        paperView.layer.shadowOpacity = ThemeManager.shared.current == .dark ? 0.6 : 0.18
+        setNeedsLayout()
 
-    func configure(with note: Note) {
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         titleLabel.font = hasExplicitTitle ? PN.font(18, bold: true) : PN.font(14, bold: true)
         bodyLabel.font = PN.font(14, bold: true)
@@ -227,7 +213,7 @@ final class NoteCell: UITableViewCell {
             font: titleLabel.font,
             color: .pnPrimary
         )
-        let previewBody = note.previewBody
+        let previewBody = note.previewBody(maxLines: Self.maxBodyLines)
         bodyLabel.attributedText = checklistAttributedText(
             previewBody,
             font: bodyLabel.font,
@@ -239,21 +225,130 @@ final class NoteCell: UITableViewCell {
         let scheduled = (note.scheduledPinDate ?? .distantPast) > Date()
         pinIcon.isHidden           = !pinned
         timerIcon.isHidden         = !scheduled
-        statusStack.isHidden       = !pinned && !scheduled
         leftAccent.backgroundColor = pinned ? .pnPrimary : .clear
 
-        // Refresh theme-dependent colors (called on every reloadData, including after theme change)
-        backgroundColor                   = .pnBackground
-        contentView.backgroundColor       = .pnBackground
-        cardView.backgroundColor          = .pnSurface
-        quickPinRevealView.alpha          = 0
-        cardView.transform                = .identity
-        titleLabel.textColor              = .pnPrimary
-        bodyLabel.textColor               = .pnPrimary
-        pinIcon.tintColor                 = .pnPrimary
-        timerIcon.tintColor               = .pnPrimary
-        selectionFill.backgroundColor     = .pnPrimary
-        selectionRing.layer.borderColor   = UIColor.pnPrimary.cgColor
+        // Theme-dependent colors (configure runs on every reload, including theme changes)
+        cardView.backgroundColor        = paperRimColor
+        paperFace.fillColor             = paperFaceColor(highlighted: isHighlighted).cgColor
+        titleLabel.textColor            = .pnPrimary
+        bodyLabel.textColor             = .pnPrimary
+        pinIcon.tintColor               = .pnPrimary
+        timerIcon.tintColor             = .pnPrimary
+        selectionFill.backgroundColor   = .pnPrimary
+        selectionRing.layer.borderColor = UIColor.pnPrimary.cgColor
+
+        selectionEditing = editing
+        statusStack.isHidden = editing || (!pinned && !scheduled)
+        selectionIndicator.isHidden = !editing
+        applySelected(selected, animated: false)
+    }
+
+    /// The paper's outline in contentView coordinates, tilt included, for the
+    /// context-menu preview.
+    var previewPath: UIBezierPath {
+        let path = Self.tornPaperPath(
+            in: cardView.bounds, topDepth: topTearDepth, sideDepth: sideTearDepth, seed: paperSeed
+        )
+        let center = paperView.center
+        let bounds = paperView.bounds
+        path.apply(
+            CGAffineTransform(translationX: center.x, y: center.y)
+                .rotated(by: tilt)
+                .translatedBy(x: -bounds.midX, y: -bounds.midY)
+        )
+        return path
+    }
+
+    /// The paper's face.
+    private func paperFaceColor(highlighted: Bool) -> UIColor {
+        switch ThemeManager.shared.current {
+        case .monochrome:
+            return highlighted
+                ? UIColor(red: 0.955, green: 0.953, blue: 0.947, alpha: 1)
+                : .white
+        case .dark, .blossom:
+            return highlighted ? .pnHighlightedSurface : .pnSurface
+        }
+    }
+
+    /// The torn-off fibres round the edge: a light grey round the white light-theme
+    /// paper, a pale pink on blossom, lighter than the face on dark.
+    private var paperRimColor: UIColor {
+        switch ThemeManager.shared.current {
+        case .monochrome: return UIColor(red: 0.905, green: 0.903, blue: 0.897, alpha: 1)
+        case .blossom:    return UIColor(red: 1.0, green: 0.958, blue: 0.970, alpha: 1)
+        case .dark:       return UIColor(red: 0.135, green: 0.138, blue: 0.148, alpha: 1)
+        }
+    }
+
+    private func paperTransform(pressed: Bool) -> CGAffineTransform {
+        let rotation = CGAffineTransform(rotationAngle: tilt)
+        return pressed ? rotation.scaledBy(x: 0.98, y: 0.98) : rotation
+    }
+
+    // MARK: - Torn paper
+
+    /// A torn scrap of paper: every edge is ragged, the top (torn off the pad)
+    /// the most, with clipped, rounded corners and soft rounded teeth. The same
+    /// seed always gives the same tear.
+    static func tornPaperPath(in rect: CGRect, topDepth: CGFloat, sideDepth: CGFloat, seed: UInt64) -> UIBezierPath {
+        var random = SplitMix64(seed: seed)
+        let path = UIBezierPath()
+        guard rect.width > sideDepth * 4, rect.height > topDepth + sideDepth * 3 else { return path }
+
+        // Clockwise round the rect; each edge's inward normal points into the paper.
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY),
+        ]
+        let depths = [topDepth, sideDepth, sideDepth, sideDepth]
+
+        // Points along the torn outline. Each edge stops short of the corners, so
+        // the corners come out clipped; the smoothing below then rounds them.
+        var points: [CGPoint] = []
+        for edge in 0..<4 {
+            let from = corners[edge]
+            let to = corners[(edge + 1) % 4]
+            let depth = depths[edge]
+            let length = hypot(to.x - from.x, to.y - from.y)
+            let direction = CGPoint(x: (to.x - from.x) / length, y: (to.y - from.y) / length)
+            let inward = CGPoint(x: -direction.y, y: direction.x)
+            let phase = random.unit() * .pi * 2
+            let cornerCut = 4 + random.unit() * 4
+
+            // Irregular teeth riding on a gentle wave, with the odd deeper bite
+            // where the paper tore unevenly.
+            func point(at distance: CGFloat) -> CGPoint {
+                let wave = (sin(distance / length * .pi * 1.6 + phase) + 1) / 2 * depth * 0.4
+                var tooth = random.unit() * depth * 0.35
+                if random.unit() < 0.18 { tooth += random.unit() * depth * 0.25 }
+                let offset = wave + tooth
+                return CGPoint(
+                    x: from.x + direction.x * distance + inward.x * offset,
+                    y: from.y + direction.y * distance + inward.y * offset
+                )
+            }
+
+            var distance = cornerCut
+            while distance < length - cornerCut {
+                points.append(point(at: distance))
+                distance += 3 + random.unit() * 5
+            }
+            points.append(point(at: length - cornerCut))
+        }
+
+        // Curves through the midpoints, bending at each point: the teeth become
+        // soft nibbles instead of sharp spikes.
+        func midpoint(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
+            CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+        }
+        path.move(to: midpoint(points[points.count - 1], points[0]))
+        for index in points.indices {
+            let next = points[(index + 1) % points.count]
+            path.addQuadCurve(to: midpoint(points[index], next), controlPoint: points[index])
+        }
+        path.close()
+        return path
     }
 
     private func checklistAttributedText(_ text: String, font: UIFont, color: UIColor) -> NSAttributedString {
@@ -271,16 +366,24 @@ final class NoteCell: UITableViewCell {
     }
 
     private func checklistAttributedLine(_ line: String, font: UIFont, color: UIColor) -> NSAttributedString {
-        guard let item = NoteListItem(line: line), item.kind == .checklist else {
-            return NSAttributedString(string: line, attributes: [.font: font, .foregroundColor: color])
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        guard let item = NoteListItem(line: line) else {
+            return NSAttributedString(string: line, attributes: attributes)
         }
 
-        let attributed = NSMutableAttributedString(
-            string: String(item.indent),
-            attributes: [.font: font, .foregroundColor: color]
-        )
-        attributed.append(checklistAttachment(checked: item.isChecked, font: font, color: color))
-        attributed.append(NSAttributedString(string: "   \(item.text)", attributes: [.font: font, .foregroundColor: color]))
+        // Marker, then the item text; wrapped lines indent to the text, as in the editor.
+        let attributed = NSMutableAttributedString(string: String(item.indent), attributes: attributes)
+        switch item.kind {
+        case .checklist:
+            attributed.append(checklistAttachment(checked: item.isChecked, font: font, color: color))
+            attributed.append(NSAttributedString(string: "   ", attributes: attributes))
+        case .bullet:
+            attributed.append(NSAttributedString(string: "•  ", attributes: attributes))
+        }
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.headIndent = ceil(attributed.size().width)
+        attributed.append(NSAttributedString(string: item.text, attributes: attributes))
+        attributed.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributed.length))
         return attributed
     }
 
@@ -312,175 +415,56 @@ final class NoteCell: UITableViewCell {
         }
     }
 
-    // MARK: - Edit mode
-
-    func applyEditMode(_ editing: Bool, animated: Bool = true) {
-        setSelectionState(editing: editing, selected: editing && selectionSelected, animated: animated)
-    }
+    // MARK: - Selection
 
     func applySelected(_ selected: Bool, animated: Bool = true) {
-        setSelectionState(editing: selectionEditing, selected: selected, animated: animated)
-    }
-
-    func resetSelectionIndicator() {
-        setSelectionState(editing: false, selected: false, animated: false)
-    }
-
-    func setSelectionState(editing: Bool, selected: Bool, animated: Bool) {
-        let wasEditing = selectionEditing
-        let wasSelected = selectionSelected
-        let oldLeading = textLeadingConstraint.constant
-        let targetLeading: CGFloat = editing ? 44 : PN.padding
-        let visualOffset = oldLeading - targetLeading
-        selectionStateVersion += 1
-        let stateVersion = selectionStateVersion
-        selectionEditing = editing
-        selectionSelected = editing && selected
-
-        contentView.layoutIfNeeded()
-        cardView.layoutIfNeeded()
-        selectionRing.layer.removeAllAnimations()
-        selectionFill.layer.removeAllAnimations()
-        titleLabel.layer.removeAllAnimations()
-        bodyLabel.layer.removeAllAnimations()
-        cardView.layer.removeAllAnimations()
-
-        let block = {
-            self.selectionFill.alpha = editing && selected ? 1 : 0
-            self.selectionFill.transform = editing && selected ? .identity : CGAffineTransform(scaleX: 0.72, y: 0.72)
-            self.titleLabel.transform = .identity
-            self.bodyLabel.transform = .identity
+        selectionSelected = selectionEditing && selected
+        let changes = {
+            self.selectionFill.alpha = self.selectionSelected ? 1 : 0
+            self.selectionFill.transform = self.selectionSelected ? .identity : CGAffineTransform(scaleX: 0.72, y: 0.72)
         }
-
         guard animated else {
-            UIView.performWithoutAnimation {
-                self.textLeadingConstraint.constant = targetLeading
-                self.selectionRing.alpha = editing ? 1 : 0
-                self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
-                block()
-                self.contentView.layoutIfNeeded()
-                self.cardView.layoutIfNeeded()
-            }
-            selectionRing.isHidden = !editing
-            selectionFill.isHidden = !(editing && selected)
+            UIView.performWithoutAnimation(changes)
             return
         }
-
-        if editing {
-            selectionRing.isHidden = false
-            selectionRing.alpha = wasEditing ? selectionRing.alpha : 0
-            selectionRing.transform = wasEditing ? selectionRing.transform : CGAffineTransform(scaleX: 0.82, y: 0.82)
-        } else {
-            selectionRing.alpha = 0
-            selectionRing.transform = CGAffineTransform(scaleX: 0.82, y: 0.82)
-            selectionRing.isHidden = true
-        }
-
-        if editing && selected {
-            selectionFill.isHidden = false
-            selectionFill.alpha = wasSelected ? selectionFill.alpha : 0
-            selectionFill.transform = wasSelected ? selectionFill.transform : CGAffineTransform(scaleX: 0.72, y: 0.72)
-        } else {
-            selectionFill.isHidden = true
-        }
-
-        UIView.performWithoutAnimation {
-            self.textLeadingConstraint.constant = targetLeading
-            self.contentView.layoutIfNeeded()
-            self.cardView.layoutIfNeeded()
-            self.titleLabel.transform = CGAffineTransform(translationX: visualOffset, y: 0)
-            self.bodyLabel.transform = CGAffineTransform(translationX: visualOffset, y: 0)
-        }
-
         UIView.animate(
             withDuration: 0.28,
             delay: 0,
             usingSpringWithDamping: 0.86,
             initialSpringVelocity: 0,
             options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: {
-                self.selectionRing.alpha = editing ? 1 : 0
-                self.selectionRing.transform = editing ? .identity : CGAffineTransform(scaleX: 0.82, y: 0.82)
-                block()
-            }
-        ) { _ in
-            guard self.selectionStateVersion == stateVersion else { return }
-            self.selectionRing.isHidden = !self.selectionEditing
-            self.selectionFill.isHidden = !(self.selectionEditing && self.selectionSelected)
-        }
-    }
-
-    // MARK: - Quick pin reveal
-
-    func setQuickPinRevealPinnedState(_ isPinned: Bool) {
-        let symbolName = isPinned ? "pin.slash.fill" : "pin.fill"
-        let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)
-        quickPinIcon.image = UIImage(systemName: symbolName, withConfiguration: config)
-    }
-
-    func setQuickPinRevealProgress(_ progress: CGFloat) {
-        let clamped = min(max(progress, 0), 1)
-        quickPinRevealView.alpha = clamped
-        quickPinCircle.transform = CGAffineTransform(scaleX: 0.92 + clamped * 0.08, y: 0.92 + clamped * 0.08)
-        cardView.transform = CGAffineTransform(translationX: clamped * 76, y: 0)
-    }
-
-    func completeQuickPinReveal(completion: (() -> Void)? = nil) {
-        UIView.animate(
-            withDuration: 0.12,
-            delay: 0,
-            options: [.curveEaseOut, .allowUserInteraction]
-        ) {
-            self.setQuickPinRevealProgress(1)
-        } completion: { _ in
-            UIView.animate(
-                withDuration: 0.24,
-                delay: 0.22,
-                usingSpringWithDamping: 0.86,
-                initialSpringVelocity: 0,
-                options: [.allowUserInteraction]
-            ) {
-                self.quickPinRevealView.alpha = 0
-                self.quickPinCircle.transform = .identity
-                self.cardView.transform = .identity
-            } completion: { _ in
-                completion?()
-            }
-        }
-    }
-
-    func resetQuickPinReveal(animated: Bool, completion: (() -> Void)? = nil) {
-        let block = {
-            self.quickPinRevealView.alpha = 0
-            self.quickPinCircle.transform = .identity
-            self.cardView.transform = .identity
-        }
-        guard animated else {
-            block()
-            completion?()
-            return
-        }
-        UIView.animate(
-            withDuration: 0.24,
-            delay: 0,
-            usingSpringWithDamping: 0.86,
-            initialSpringVelocity: 0,
-            options: [.allowUserInteraction]
-        ) {
-            block()
-        } completion: { _ in
-            completion?()
-        }
+            animations: changes
+        )
     }
 
     // MARK: - Highlight
 
-    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
-        super.setHighlighted(highlighted, animated: animated)
-        UIView.animate(withDuration: 0.12) {
-            self.cardView.backgroundColor = highlighted
-                ? .pnHighlightedSurface
-                : .pnSurface
+    override var isHighlighted: Bool {
+        didSet {
+            UIView.animate(withDuration: 0.12) {
+                self.paperFace.fillColor = self.paperFaceColor(highlighted: self.isHighlighted).cgColor
+                self.paperView.transform = self.paperTransform(pressed: self.isHighlighted)
+            }
         }
+    }
+}
+
+/// Small deterministic random generator, so a note's paper looks the same every time.
+private struct SplitMix64 {
+    private var state: UInt64
+
+    init(seed: UInt64) { state = seed }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+
+    /// A value in 0...1.
+    mutating func unit() -> CGFloat {
+        CGFloat(next() >> 11) / CGFloat(1 << 53)
     }
 }

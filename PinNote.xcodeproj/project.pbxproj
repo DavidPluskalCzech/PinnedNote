@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9A1B2C30000000000000042 /* MasonryLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000041 /* MasonryLayout.swift */; };
 		C9A1B2C30000000000000022 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000021 /* AppFont.swift */; };
 		C9A1B2C30000000000000023 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000021 /* AppFont.swift */; };
 		C9A1B2C30000000000000026 /* Kalam-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000025 /* Kalam-Regular.ttf */; };
@@ -82,6 +83,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C9A1B2C30000000000000041 /* MasonryLayout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MasonryLayout.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000021 /* AppFont.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000025 /* Kalam-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Kalam-Regular.ttf"; sourceTree = "<group>"; };
 		C9A1B2C30000000000000028 /* Kalam-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Kalam-Bold.ttf"; sourceTree = "<group>"; };
@@ -218,6 +220,7 @@
 			isa = PBXGroup;
 			children = (
 				784CC7AC5EBC5F52AEC9FBE2 /* NoteCell.swift */,
+				C9A1B2C30000000000000041 /* MasonryLayout.swift */,
 				67E70384354E32DED93134F9 /* BottomBars.swift */,
 				9B5F1C2D4E6A778899AABBCD /* PinStatusToast.swift */,
 				9B5F1C2D4E6A778899AABBDF /* PNAlertController.swift */,
@@ -487,6 +490,7 @@
 				E60D72AC1B8BE813B31FB492 /* NoteDetailViewController.swift in Sources */,
 				01B07F6F9FC2111489241FC0 /* SettingsViewController.swift in Sources */,
 				BA133479C8C4F3A4A6CC8C30 /* NoteCell.swift in Sources */,
+				C9A1B2C30000000000000042 /* MasonryLayout.swift in Sources */,
 				DBD655ED9F03B482F123E955 /* BottomBars.swift in Sources */,
 				9B5F1C2D4E6A778899AABBCC /* PinStatusToast.swift in Sources */,
 				9B5F1C2D4E6A778899AABBE0 /* PNAlertController.swift in Sources */,
