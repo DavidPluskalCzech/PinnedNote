@@ -37,6 +37,8 @@ final class NoteCell: UICollectionViewCell {
     private let leftAccent   = UIView()
     private let titleLabel   = UILabel()
     private let bodyLabel    = UILabel()
+    /// Small secondary line under the text, e.g. the countdown in the trash.
+    private let footnoteLabel = UILabel()
     private let pinIcon      = UIImageView()
     private let timerIcon    = UIImageView()
     private let statusStack  = UIStackView()
@@ -130,7 +132,11 @@ final class NoteCell: UICollectionViewCell {
         bodyLabel.numberOfLines = Self.maxBodyLines
         bodyLabel.lineBreakMode = .byTruncatingTail
 
-        let textStack = UIStackView(arrangedSubviews: [titleRow, bodyLabel])
+        footnoteLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        footnoteLabel.numberOfLines = 1
+        footnoteLabel.isHidden = true
+
+        let textStack = UIStackView(arrangedSubviews: [titleRow, bodyLabel, footnoteLabel])
         textStack.axis = .vertical
         textStack.spacing = 4
         textStack.translatesAutoresizingMaskIntoConstraints = false
@@ -208,7 +214,9 @@ final class NoteCell: UICollectionViewCell {
         paperView.layer.shadowPath = path.cgPath
     }
 
-    func configure(with note: Note, editing: Bool, selected: Bool) {
+    func configure(with note: Note, editing: Bool, selected: Bool,
+                   footnote: String? = nil, footnoteSymbol: String? = nil) {
+        setFootnote(footnote, symbol: footnoteSymbol)
         paperSeed = withUnsafeBytes(of: note.id.uuid) { $0.load(as: UInt64.self) }
         // Up to about ±1° either way.
         tilt = (CGFloat(paperSeed % 1000) / 1000 - 0.5) * 0.035
@@ -217,7 +225,7 @@ final class NoteCell: UICollectionViewCell {
         cardView.setNeedsLayout()
 
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        titleLabel.font = hasExplicitTitle ? PN.font(20, bold: true) : PN.font(14, bold: true)
+        titleLabel.font = hasExplicitTitle ? PN.titleFont(20) : PN.font(14, bold: true)
         bodyLabel.font = PN.font(14, bold: true)
         let title = NSMutableAttributedString(attributedString: checklistAttributedText(
             note.displayTitle,
@@ -413,6 +421,25 @@ final class NoteCell: UICollectionViewCell {
             let box = CGRect(x: 0, y: overshoot, width: size, height: size)
             UIBezierPath(cgPath: HandDrawnCheckbox.path(in: box, checked: checked)).fill()
         }
+    }
+
+    /// Updates just the footnote, e.g. a ticking countdown, without a full configure.
+    /// `symbol` puts an SF Symbol in front of the text.
+    func setFootnote(_ text: String?, symbol: String? = nil) {
+        footnoteLabel.isHidden = text == nil
+        guard let text else { footnoteLabel.attributedText = nil; return }
+        let line = NSMutableAttributedString()
+        if let symbol, let image = UIImage(
+            systemName: symbol,
+            withConfiguration: UIImage.SymbolConfiguration(font: footnoteLabel.font)
+        )?.withTintColor(.pnSecondary, renderingMode: .alwaysOriginal) {
+            line.append(NSAttributedString(attachment: NSTextAttachment(image: image)))
+            line.append(NSAttributedString(string: " "))
+        }
+        line.append(NSAttributedString(string: text))
+        line.addAttributes([.font: footnoteLabel.font as Any, .foregroundColor: UIColor.pnSecondary],
+                           range: NSRange(location: 0, length: line.length))
+        footnoteLabel.attributedText = line
     }
 
     // MARK: - Landing

@@ -68,6 +68,17 @@
 "settings_fonts_header" = "Písmo";
 "settings_cat_companion" = "Kočičí společník";
 "settings_cat_companion_footer" = "Vedle nadpisu bydlí malá kočka. Když je aplikace zavřená, spí, a když ji otevřeš, probudí se.";
+"settings_trash" = "Koš";
+"settings_trash_footer" = "Smazané poznámky tu zůstanou 30 dní, pak se smažou natrvalo.";
+"trash_title" = "Koš";
+"trash_empty" = "Koš je prázdný";
+"trash_expires_in" = "Smaže se natrvalo za %@";
+"trash_restore" = "Obnovit";
+"trash_delete_forever" = "Smazat natrvalo";
+"trash_delete_all" = "Smazat vše";
+"trash_empty_confirm_title" = "Smazat všechny poznámky natrvalo?";
+"trash_delete_confirm_title" = "Smazat poznámku natrvalo?";
+"trash_cannot_undo" = "Tuto akci nelze vrátit.";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "Upgrade";
 "settings_upgrade_footer" = "Měsíční předplatné se automaticky obnovuje. Doživotní přístup je jednorázový nákup.";

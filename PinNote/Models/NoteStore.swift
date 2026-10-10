@@ -17,6 +17,9 @@ final class NoteStore: ObservableObject {
     private let defaults: UserDefaults
     private let localURLProvider: () -> URL
     private let iCloudURLProvider: () throws -> URL
+    /// Where deleted notes go. The shared store uses the app's trash; stores made
+    /// for tests have none unless given one.
+    private let trash: TrashStore?
 
     private enum StorageError: LocalizedError {
         case iCloudUnavailable
@@ -76,15 +79,17 @@ final class NoteStore: ObservableObject {
     // MARK: - Init
 
     private convenience init() {
-        self.init(defaults: .standard)
+        self.init(defaults: .standard, trash: .shared)
     }
 
     init(
         defaults: UserDefaults,
         localURLProvider: (() -> URL)? = nil,
-        iCloudURLProvider: (() throws -> URL)? = nil
+        iCloudURLProvider: (() throws -> URL)? = nil,
+        trash: TrashStore? = nil
     ) {
         self.defaults = defaults
+        self.trash = trash
         self.localURLProvider = localURLProvider ?? {
             FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("notes.json")
@@ -166,19 +171,32 @@ final class NoteStore: ObservableObject {
         }
     }
 
+    /// Removes notes from the list and moves them to the trash.
     func delete(id: UUID) {
-        let previous = notes
-        notes.removeAll { $0.id == id }
-        if !save() {
-            notes = previous
-        }
+        delete(ids: [id])
     }
 
     func delete(ids: Set<UUID>) {
         let previous = notes
+        let removed = notes.filter { ids.contains($0.id) }
         notes.removeAll { ids.contains($0.id) }
+        if save() {
+            trash?.add(removed)
+        } else {
+            notes = previous
+        }
+    }
+
+    /// Puts a note from the trash back in the list.
+    func restoreFromTrash(id: UUID) {
+        guard let trash, let note = trash.restore(id: id) else { return }
+        let previous = notes
+        notes.removeAll { $0.id == note.id }
+        notes.append(note)
+        notes.sort { $0.modifiedAt > $1.modifiedAt }
         if !save() {
             notes = previous
+            trash.add([note])
         }
     }
 

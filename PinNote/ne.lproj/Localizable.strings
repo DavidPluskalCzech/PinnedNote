@@ -68,6 +68,17 @@
 "settings_fonts_header" = "फन्ट";
 "settings_cat_companion" = "बिरालो साथी";
 "settings_cat_companion_footer" = "शीर्षकको छेउमा एउटा सानो बिरालो बस्छ। एप बन्द हुँदा ऊ सुत्छ र खोल्दा ब्युँझन्छ।";
+"settings_trash" = "हालै मेटाइएका";
+"settings_trash_footer" = "मेटाइएका नोटहरू यहाँ ३० दिनसम्म रहन्छन्, त्यसपछि स्थायी रूपमा मेटिन्छन्।";
+"trash_title" = "हालै मेटाइएका";
+"trash_empty" = "यहाँ केही छैन";
+"trash_expires_in" = "%@ पछि स्थायी रूपमा मेटिनेछ";
+"trash_restore" = "पुनर्स्थापना गर्नुहोस्";
+"trash_delete_forever" = "स्थायी रूपमा मेटाउनुहोस्";
+"trash_delete_all" = "सबै मेटाउनुहोस्";
+"trash_empty_confirm_title" = "सबै नोटहरू स्थायी रूपमा मेटाउने?";
+"trash_delete_confirm_title" = "यो नोट स्थायी रूपमा मेटाउने?";
+"trash_cannot_undo" = "यो कार्य पूर्ववत गर्न सकिँदैन।";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "अपग्रेड";
 "settings_upgrade_footer" = "मासिक सदस्यता स्वतः नवीकरण हुन्छ। आजीवन योजना एक पटकको खरिद हो।";

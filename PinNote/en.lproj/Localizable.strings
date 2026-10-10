@@ -68,6 +68,17 @@
 "settings_fonts_header" = "Fonts";
 "settings_cat_companion" = "Cat companion";
 "settings_cat_companion_footer" = "A little cat lives next to the title. It sleeps while the app is closed and wakes up when you open it.";
+"settings_trash" = "Recently Deleted";
+"settings_trash_footer" = "Deleted notes stay here for 30 days, then they're deleted for good.";
+"trash_title" = "Recently Deleted";
+"trash_empty" = "Nothing here";
+"trash_expires_in" = "Deleted for good in %@";
+"trash_restore" = "Restore";
+"trash_delete_forever" = "Delete for Good";
+"trash_delete_all" = "Delete All";
+"trash_empty_confirm_title" = "Delete all notes for good?";
+"trash_delete_confirm_title" = "Delete this note for good?";
+"trash_cannot_undo" = "This can't be undone.";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "Upgrade";
 "settings_upgrade_footer" = "Monthly renews automatically. Lifetime is a one-time purchase.";

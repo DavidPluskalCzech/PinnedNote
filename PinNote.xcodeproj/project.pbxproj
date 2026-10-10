@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9A1B2C30000000000000086 /* TrashStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000085 /* TrashStoreTests.swift */; };
+		C9A1B2C30000000000000082 /* TrashStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000081 /* TrashStore.swift */; };
+		C9A1B2C30000000000000084 /* TrashViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000083 /* TrashViewController.swift */; };
 		C9A1B2C30000000000000072 /* CatCompanionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000071 /* CatCompanionView.swift */; };
 		C9A1B2C30000000000000074 /* CatCompanion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000073 /* CatCompanion.swift */; };
 		C9A1B2C30000000000000062 /* SlantAwareTextInputs.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A1B2C30000000000000061 /* SlantAwareTextInputs.swift */; };
@@ -86,6 +89,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C9A1B2C30000000000000085 /* TrashStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashStoreTests.swift; sourceTree = "<group>"; };
+		C9A1B2C30000000000000081 /* TrashStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrashStore.swift; sourceTree = "<group>"; };
+		C9A1B2C30000000000000083 /* TrashViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrashViewController.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000071 /* CatCompanionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CatCompanionView.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000073 /* CatCompanion.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CatCompanion.swift; sourceTree = "<group>"; };
 		C9A1B2C30000000000000061 /* SlantAwareTextInputs.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SlantAwareTextInputs.swift; sourceTree = "<group>"; };
@@ -186,6 +192,7 @@
 			children = (
 				11B2A20E6A492019A874F91E /* Note.swift */,
 				8FCF2EE5D3D0097E2187EF9A /* NoteStore.swift */,
+				C9A1B2C30000000000000081 /* TrashStore.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -267,6 +274,7 @@
 				8E57B8B4982B52D8B6761FC5 /* NoteListViewController.swift */,
 				FF47818C08579229B16414F7 /* NoteDetailViewController.swift */,
 				764A5458E824AE456CB990C1 /* SettingsViewController.swift */,
+				C9A1B2C30000000000000083 /* TrashViewController.swift */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -320,6 +328,7 @@
 			children = (
 				A10000000000000000000004 /* NoteTests.swift */,
 				A10000000000000000000005 /* NoteStoreTests.swift */,
+				C9A1B2C30000000000000085 /* TrashStoreTests.swift */,
 				C9A1B2C30000000000000004 /* NoteListItemTests.swift */,
 			);
 			path = PinNoteTests;
@@ -493,6 +502,8 @@
 				1F3E59E4A3E557212A431EE9 /* Note.swift in Sources */,
 				C9E1A6202F86816700AD4F19 /* OnboardingViewController.swift in Sources */,
 				C6E8A5D74DF24A74AD295727 /* NoteStore.swift in Sources */,
+				C9A1B2C30000000000000082 /* TrashStore.swift in Sources */,
+				C9A1B2C30000000000000084 /* TrashViewController.swift in Sources */,
 				75A727B7904E91B5AD097FE7 /* DesignSystem.swift in Sources */,
 				3D2EB913B6AA008BDB4ED67B /* NoteListViewController.swift in Sources */,
 				E60D72AC1B8BE813B31FB492 /* NoteDetailViewController.swift in Sources */,
@@ -525,6 +536,7 @@
 			files = (
 				A10000000000000000000001 /* NoteTests.swift in Sources */,
 				A10000000000000000000002 /* NoteStoreTests.swift in Sources */,
+				C9A1B2C30000000000000086 /* TrashStoreTests.swift in Sources */,
 				C9A1B2C30000000000000005 /* NoteListItemTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -36,6 +36,12 @@ final class SettingsViewController: UIViewController {
         )
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // The trash count may have changed while the trash was open.
+        tableView.reloadData()
+    }
+
     // MARK: - Setup
 
     private func setupNavBar() {
@@ -126,9 +132,9 @@ final class SettingsViewController: UIViewController {
         tableView.scrollToRow(at: IndexPath(row: 0, section: section), at: .top, animated: true)
     }
 
-    private func companionFooter() -> UIView {
+    private func footerLabel(_ text: String) -> UIView {
         let label = UILabel()
-        label.text = NSLocalizedString("settings_cat_companion_footer", comment: "")
+        label.text = text
         label.font = .systemFont(ofSize: 13)
         label.textColor = .pnSecondary
         label.numberOfLines = 0
@@ -161,13 +167,13 @@ private extension SettingsViewController {
     var pm: PurchaseManager { PurchaseManager.shared }
 
     enum Section: Int, CaseIterable {
-        case sync, theme, font, companion, status, upgrade, support
+        case sync, theme, font, companion, trash, status, upgrade, support
     }
 
     func visibleSections() -> [Section] {
         pm.isPro
-            ? [.sync, .theme, .font, .companion, .status, .support]
-            : [.sync, .theme, .font, .companion, .status, .upgrade, .support]
+            ? [.sync, .theme, .font, .companion, .trash, .status, .support]
+            : [.sync, .theme, .font, .companion, .trash, .status, .upgrade, .support]
     }
 
     func rowsInSupport() -> Int { 3 }  // restore + feedback + version
@@ -199,6 +205,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         case .theme:   return NSLocalizedString("settings_appearance_header", comment: "")
         case .font:    return NSLocalizedString("settings_fonts_header",      comment: "")
         case .companion: return nil
+        case .trash:     return nil
         case .status:  return NSLocalizedString("settings_pro_header",        comment: "")
         case .upgrade: return nil
         case .support: return nil
@@ -212,7 +219,8 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         let s = visibleSections()[section]
         if s == .status { return UIView() }   // empty — height controlled below
-        if s == .companion { return companionFooter() }
+        if s == .companion { return footerLabel(NSLocalizedString("settings_cat_companion_footer", comment: "")) }
+        if s == .trash { return footerLabel(NSLocalizedString("settings_trash_footer", comment: "")) }
         guard (s == .upgrade && !pm.isPro) || (s == .support && pm.isPro) else { return nil }
         let footer = UpgradeFooterView()
         footer.onPrivacy = { [weak self] in self?.openURL(SettingsViewController.privacyPolicyURL) }
@@ -223,7 +231,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
         let s = visibleSections()[section]
         if s == .status  { return CGFloat.leastNormalMagnitude }
-        if s == .companion { return UITableView.automaticDimension }
+        if s == .companion || s == .trash { return UITableView.automaticDimension }
         if s == .upgrade || (s == .support && pm.isPro) { return UITableView.automaticDimension }
         return CGFloat.leastNormalMagnitude
     }
@@ -280,6 +288,19 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
             toggle.onTintColor   = .pnPrimary
             toggle.addTarget(self, action: #selector(catCompanionToggled(_:)), for: .valueChanged)
             cell.accessoryView   = toggle
+            return cell
+
+        // ── Trash ────────────────────────────────────────────────────
+        case .trash:
+            let cell = UITableViewCell(style: .value1, reuseIdentifier: nil)
+            cell.backgroundColor = .pnSurface
+            cell.textLabel?.text = NSLocalizedString("settings_trash", comment: "")
+            cell.imageView?.image = UIImage(systemName: "trash")
+            cell.imageView?.tintColor = .pnPrimary
+            let count = TrashStore.shared.items.count
+            cell.detailTextLabel?.text = count > 0 ? "\(count)" : nil
+            cell.detailTextLabel?.textColor = .pnSecondary
+            cell.accessoryType = .disclosureIndicator
             return cell
 
         // ── Pro status ───────────────────────────────────────────────
@@ -360,6 +381,10 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        if visibleSections()[indexPath.section] == .trash {
+            navigationController?.pushViewController(TrashViewController(), animated: true)
+            return
+        }
         guard visibleSections()[indexPath.section] == .support else { return }
         switch indexPath.row {
         case 0: Task { await pm.restore() }

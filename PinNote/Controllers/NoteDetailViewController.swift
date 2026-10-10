@@ -228,7 +228,7 @@ final class NoteDetailViewController: UIViewController {
         titleTapArea.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleTapArea)
 
-        titleField.font = PN.font(24, bold: true)
+        titleField.font = PN.titleFont(24)
         titleField.textColor = .pnPrimary
         applyTitleWeight()
         titleField.tintColor = .pnTextSelection
@@ -442,7 +442,7 @@ final class NoteDetailViewController: UIViewController {
     }
 
     @objc private func applyFont() {
-        titleField.font = PN.font(24, bold: true)
+        titleField.font = PN.titleFont(24)
         applyTitleWeight()
         textView.font   = PN.font(17, bold: true)
         updateTitlePlaceholder()
@@ -508,7 +508,7 @@ final class NoteDetailViewController: UIViewController {
             string: NSLocalizedString("detail_title_placeholder", comment: ""),
             attributes: [
                 .foregroundColor: UIColor.pnSecondary.withAlphaComponent(0.45),
-                .font: PN.font(24, bold: true),
+                .font: PN.titleFont(24),
             ]
         )
     }

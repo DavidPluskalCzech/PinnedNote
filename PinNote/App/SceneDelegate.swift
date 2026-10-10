@@ -43,6 +43,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        TrashStore.shared.purgeExpired()
         Task { @MainActor in
             LiveActivityManager.shared.reconcileCurrentState()
             await ScheduledPinManager.shared.processDuePins()

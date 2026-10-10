@@ -113,6 +113,14 @@ enum PN {
         }
     }
 
+    /// Font for note titles: the bold face. SF Pro's is set 3pt larger, so titles
+    /// stand out from the text as they do in the handwriting fonts.
+    static func titleFont(_ size: CGFloat) -> UIFont {
+        let font = font(size, bold: true)
+        guard font.familyName == UIFont.systemFont(ofSize: size).familyName else { return font }
+        return .boldSystemFont(ofSize: size + 3)
+    }
+
     static func font(_ size: CGFloat, bold: Bool = false) -> UIFont {
         let lang = Locale.current.language.languageCode?.identifier ?? ""
         if systemFontLanguages.contains(lang) {

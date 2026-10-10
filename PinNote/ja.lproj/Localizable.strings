@@ -68,6 +68,17 @@
 "settings_fonts_header" = "フォント";
 "settings_cat_companion" = "ネコのおともだち";
 "settings_cat_companion_footer" = "タイトルの横に小さなネコがいます。アプリを閉じている間は眠り、開くと目を覚まします。";
+"settings_trash" = "最近削除した項目";
+"settings_trash_footer" = "削除したメモは30日間ここに保管され、その後完全に削除されます。";
+"trash_title" = "最近削除した項目";
+"trash_empty" = "項目はありません";
+"trash_expires_in" = "%@後に完全に削除";
+"trash_restore" = "復元";
+"trash_delete_forever" = "完全に削除";
+"trash_delete_all" = "すべて削除";
+"trash_empty_confirm_title" = "すべてのメモを完全に削除しますか？";
+"trash_delete_confirm_title" = "このメモを完全に削除しますか？";
+"trash_cannot_undo" = "この操作は取り消せません。";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "アップグレード";
 "settings_upgrade_footer" = "月額プランは自動更新されます。買い切りプランは一度のみの購入です。";
