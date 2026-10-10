@@ -39,6 +39,8 @@
 "list_write_first" = "Write your first one";
 "pin_toast_pinned" = "Pinned to Lock Screen";
 "pin_toast_unpinned" = "Unpinned from Lock Screen";
+"list_menu_pin" = "Pin to lock screen";
+"list_menu_unpin" = "Unpin from lock screen";
 "copy_toast_copied" = "Copied to clipboard";
 "schedule_toast_set" = "Timer set";
 "schedule_toast_cleared" = "Timer cleared";

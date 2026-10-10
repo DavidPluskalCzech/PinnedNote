@@ -39,6 +39,8 @@
 "list_write_first" = "最初のメモを書いてみましょう。";
 "pin_toast_pinned" = "ロック画面に固定しました";
 "pin_toast_unpinned" = "ロック画面から固定解除しました";
+"list_menu_pin" = "ロック画面に固定";
+"list_menu_unpin" = "ロック画面から固定解除";
 "copy_toast_copied" = "クリップボードにコピーしました";
 "schedule_toast_set" = "タイマーを設定しました";
 "schedule_toast_cleared" = "タイマーを解除しました";

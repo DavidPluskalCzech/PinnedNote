@@ -23,7 +23,7 @@ final class NoteCell: UICollectionViewCell {
     /// Holds the paper and its shadow; carries the slight per-note tilt.
     private let paperView    = UIView()
     /// The torn-off sheet — all content lives inside this.
-    private let cardView     = UIView()
+    private let cardView     = LayoutReportingView()
     private let paperMask    = CAShapeLayer()
     /// The paper's face, inset from the torn outline by an uneven strip: the
     /// cardView's own color shows in that strip as the white torn-off fibres.
@@ -72,6 +72,7 @@ final class NoteCell: UICollectionViewCell {
 
         cardView.backgroundColor        = paperRimColor
         cardView.layer.mask             = paperMask
+        cardView.onLayout = { [weak self] in self?.updatePaperShape() }
         cardView.layer.insertSublayer(paperFace, at: 0)
         cardView.translatesAutoresizingMaskIntoConstraints = false
         paperView.addSubview(cardView)
@@ -183,8 +184,14 @@ final class NoteCell: UICollectionViewCell {
         paperView.transform = .identity
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
+    /// Redraws the torn outline, fibre rim and shadow for the paper's current size.
+    /// Runs from the paper's own layout, so it follows every size change — a reused
+    /// cell given a taller tile, edit mode, a theme or font change.
+    private func updatePaperShape() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+
         let path = Self.tornPaperPath(
             in: cardView.bounds, topDepth: topTearDepth, sideDepth: sideTearDepth, seed: paperSeed
         )
@@ -203,7 +210,7 @@ final class NoteCell: UICollectionViewCell {
         tilt = (CGFloat(paperSeed % 1000) / 1000 - 0.5) * 0.035
         paperView.transform = paperTransform(pressed: isHighlighted)
         paperView.layer.shadowOpacity = ThemeManager.shared.current == .dark ? 0.6 : 0.18
-        setNeedsLayout()
+        cardView.setNeedsLayout()
 
         let hasExplicitTitle = !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         titleLabel.font = hasExplicitTitle ? PN.font(18, bold: true) : PN.font(14, bold: true)
@@ -241,22 +248,6 @@ final class NoteCell: UICollectionViewCell {
         statusStack.isHidden = editing || (!pinned && !scheduled)
         selectionIndicator.isHidden = !editing
         applySelected(selected, animated: false)
-    }
-
-    /// The paper's outline in contentView coordinates, tilt included, for the
-    /// context-menu preview.
-    var previewPath: UIBezierPath {
-        let path = Self.tornPaperPath(
-            in: cardView.bounds, topDepth: topTearDepth, sideDepth: sideTearDepth, seed: paperSeed
-        )
-        let center = paperView.center
-        let bounds = paperView.bounds
-        path.apply(
-            CGAffineTransform(translationX: center.x, y: center.y)
-                .rotated(by: tilt)
-                .translatedBy(x: -bounds.midX, y: -bounds.midY)
-        )
-        return path
     }
 
     /// The paper's face.
@@ -466,5 +457,15 @@ private struct SplitMix64 {
     /// A value in 0...1.
     mutating func unit() -> CGFloat {
         CGFloat(next() >> 11) / CGFloat(1 << 53)
+    }
+}
+
+/// Reports each layout pass, so shapes drawn for its size can follow it.
+private final class LayoutReportingView: UIView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
     }
 }

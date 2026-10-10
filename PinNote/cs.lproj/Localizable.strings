@@ -39,6 +39,8 @@
 "list_write_first" = "Napiš svou první";
 "pin_toast_pinned" = "Připnuto na zamykací obrazovku";
 "pin_toast_unpinned" = "Odepnuto ze zamykací obrazovky";
+"list_menu_pin" = "Připnout na zamykací obrazovku";
+"list_menu_unpin" = "Odepnout ze zamykací obrazovky";
 "copy_toast_copied" = "Zkopírováno do schránky";
 "schedule_toast_set" = "Časovač nastaven";
 "schedule_toast_cleared" = "Časovač zrušen";

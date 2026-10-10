@@ -72,8 +72,8 @@ final class NoteDetailViewController: UIViewController {
     // MARK: - Subviews
 
     private let titleTapArea = UIControl()
-    private let titleField   = UITextField()
-    private let textView     = UITextView()
+    private let titleField   = NoteTitleField()
+    private let textView     = NoteTextView()
     private let backButton   = UIButton(type: .custom)
     private let bottomBar    = NoteDetailBottomBar()
     private let doneButton   = UIButton(type: .custom)
@@ -88,6 +88,10 @@ final class NoteDetailViewController: UIViewController {
     private var isApplyingListParagraphStyles = false
     private var isAnimatingKeyboardLayout = false
     private var isKeepingSelectionOutOfListPrefix = false
+    /// The selection when a tap on a checkbox began; set only while that tap is in
+    /// progress. The tap just toggles the box: it doesn't open the keyboard or move
+    /// the cursor.
+    private var selectionBeforeChecklistTap: NSRange?
     private var lastSelectedRange = NSRange(location: 0, length: 0)
 
     // MARK: - Init
@@ -671,7 +675,18 @@ final class NoteDetailViewController: UIViewController {
         guard gesture.state == .ended else { return }
 
         guard let line = lineInfo(at: gesture.location(in: textView)) else { return }
+        let savedSelection = selectionBeforeChecklistTap
         toggleChecklistItem(at: line.characterIndex, onlyWhenNearCheckbox: true)
+
+        // The text view handles the same tap and may move the cursor before or after
+        // this runs, so put the selection back now and once more on the next pass.
+        guard let savedSelection else { return }
+        textView.selectedRange = savedSelection
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.textView.isFirstResponder { self.textView.selectedRange = savedSelection }
+            self.selectionBeforeChecklistTap = nil
+        }
     }
 
     @objc private func handleWordSelectionLongPress(_ gesture: UILongPressGestureRecognizer) {
@@ -1069,6 +1084,11 @@ extension NoteDetailViewController: UITextViewDelegate {
     private var checkedChecklistPrefix: String { "  \(NoteListItem.checkedMarker)    " }
     private var uncheckedChecklistPrefixLength: Int { (uncheckedChecklistPrefix as NSString).length }
 
+    func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
+        // A tap on a checkbox toggles it without bringing up the keyboard.
+        selectionBeforeChecklistTap == nil
+    }
+
     func textViewDidChange(_ textView: UITextView) {
         guard !isRefreshingChecklistDisplay else { return }
         isDirty = true
@@ -1385,8 +1405,16 @@ extension NoteDetailViewController: UIGestureRecognizerDelegate {
 
         let nsText = textView.text as NSString
         let lineBounds = currentLineBounds(in: nsText, at: line.characterIndex)
-        guard let hitRect = checklistHitRect(for: lineBounds, item: item) else { return false }
-        return hitRect.contains(point)
+        guard let hitRect = checklistHitRect(for: lineBounds, item: item),
+              hitRect.contains(point) else { return false }
+
+        // Called as the finger touches down, before the text view reacts to the tap.
+        selectionBeforeChecklistTap = textView.selectedRange
+        // In case the touch never becomes a tap (the finger moves away).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.selectionBeforeChecklistTap = nil
+        }
+        return true
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,

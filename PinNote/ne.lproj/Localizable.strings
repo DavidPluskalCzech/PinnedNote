@@ -39,6 +39,8 @@
 "list_write_first" = "पहिलो नोट लेख्नुहोस्।";
 "pin_toast_pinned" = "लक स्क्रिनमा पिन भयो";
 "pin_toast_unpinned" = "लक स्क्रिनबाट अनपिन भयो";
+"list_menu_pin" = "लक स्क्रिनमा पिन गर्नुहोस्";
+"list_menu_unpin" = "लक स्क्रिनबाट अनपिन गर्नुहोस्";
 "copy_toast_copied" = "क्लिपबोर्डमा कपी भयो";
 "schedule_toast_set" = "टाइमर सेट भयो";
 "schedule_toast_cleared" = "टाइमर हटाइयो";

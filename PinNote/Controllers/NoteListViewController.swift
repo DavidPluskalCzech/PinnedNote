@@ -91,6 +91,10 @@ final class NoteListViewController: UIViewController {
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(collectionView)
 
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleTileLongPress(_:)))
+        longPress.minimumPressDuration = 0.4
+        collectionView.addGestureRecognizer(longPress)
+
         // Softens the handoff from the solid title area into scrolling notes.
         headerFadeView.isUserInteractionEnabled = false
         headerFadeView.backgroundColor = .clear
@@ -365,6 +369,54 @@ final class NoteListViewController: UIViewController {
         )
     }
 
+    // MARK: - Tile menu
+
+    /// Long press on a tile: lift it and show the pin / delete menu under it.
+    @objc private func handleTileLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began,
+              let indexPath = collectionView.indexPathForItem(at: gesture.location(in: collectionView)) else { return }
+        showTileMenu(at: indexPath)
+    }
+
+    private func showTileMenu(at indexPath: IndexPath) {
+        guard !isInEditMode,
+              presentedViewController == nil,
+              indexPath.item < NoteStore.shared.notes.count,
+              let cell = collectionView.cellForItem(at: indexPath) else { return }
+
+        let noteID = NoteStore.shared.notes[indexPath.item].id
+        let isPinned = NoteStore.shared.notes[indexPath.item].isPinned
+
+        // Capture the tile at rest, not mid press.
+        cell.isHighlighted = false
+        cell.layoutIfNeeded()
+        guard let snapshot = cell.snapshotView(afterScreenUpdates: true) else { return }
+        let sourceFrame = cell.convert(cell.bounds, to: nil)
+
+        let menu = NoteActionMenuController(snapshot: snapshot, sourceFrame: sourceFrame, isPinned: isPinned)
+        menu.onDismiss = { [weak self] in
+            self?.collectionView.visibleCells.forEach { $0.alpha = 1 }
+        }
+        menu.onTogglePin = { [weak self] in
+            guard let self,
+                  let note = NoteStore.shared.notes.first(where: { $0.id == noteID }),
+                  self.canTogglePinFromList(note) else { return }
+            Task { @MainActor in await self.commitPinToggleFromList(note) }
+        }
+        menu.onDelete = { [weak self] in
+            guard let self,
+                  let note = NoteStore.shared.notes.first(where: { $0.id == noteID }) else { return }
+            if note.isPinned { LiveActivityManager.shared.stop() }
+            ScheduledPinManager.shared.removeNotificationBackup(noteID: note.id)
+            self.pendingAnimatedDeletionID = note.id
+            NoteStore.shared.delete(id: note.id)
+        }
+
+        // The snapshot stands in for the tile while the menu is open.
+        cell.alpha = 0
+        present(menu, animated: false)
+    }
+
     @objc private func refreshTrialBanner() {
         let pm = PurchaseManager.shared
         let showBanner = !pm.isPro && !pm.isTrialActive
@@ -578,70 +630,6 @@ extension NoteListViewController: UICollectionViewDelegate {
             let vc = NoteDetailViewController(note: note)
             navigationController?.pushViewController(vc, animated: true)
         }
-    }
-
-    // Long press: pin or unpin, delete.
-    func collectionView(
-        _ collectionView: UICollectionView,
-        contextMenuConfigurationForItemsAt indexPaths: [IndexPath],
-        point: CGPoint
-    ) -> UIContextMenuConfiguration? {
-        guard !isInEditMode,
-              let indexPath = indexPaths.first,
-              indexPath.item < NoteStore.shared.notes.count else { return nil }
-        let noteID = NoteStore.shared.notes[indexPath.item].id
-
-        return UIContextMenuConfiguration(identifier: noteID.uuidString as NSString, previewProvider: nil) { [weak self] _ in
-            guard let self,
-                  let note = NoteStore.shared.notes.first(where: { $0.id == noteID }) else { return nil }
-
-            let pin = UIAction(
-                title: NSLocalizedString(note.isPinned ? "detail_toolbar_unpin" : "detail_toolbar_pin", comment: ""),
-                image: UIImage(systemName: note.isPinned ? "pin.slash" : "pin")
-            ) { [weak self] _ in
-                guard let self, self.canTogglePinFromList(note) else { return }
-                Task { @MainActor in await self.commitPinToggleFromList(note) }
-            }
-
-            let delete = UIAction(
-                title: NSLocalizedString("detail_toolbar_delete", comment: ""),
-                image: UIImage(systemName: "trash"),
-                attributes: .destructive
-            ) { [weak self] _ in
-                guard let self else { return }
-                if note.isPinned { LiveActivityManager.shared.stop() }
-                ScheduledPinManager.shared.removeNotificationBackup(noteID: note.id)
-                self.pendingAnimatedDeletionID = note.id
-                NoteStore.shared.delete(id: note.id)
-            }
-
-            return UIMenu(children: [pin, delete])
-        }
-    }
-
-    func collectionView(
-        _ collectionView: UICollectionView,
-        contextMenuConfiguration configuration: UIContextMenuConfiguration,
-        highlightPreviewForItemAt indexPath: IndexPath
-    ) -> UITargetedPreview? {
-        tilePreview(at: indexPath)
-    }
-
-    func collectionView(
-        _ collectionView: UICollectionView,
-        contextMenuConfiguration configuration: UIContextMenuConfiguration,
-        dismissalPreviewForItemAt indexPath: IndexPath
-    ) -> UITargetedPreview? {
-        tilePreview(at: indexPath)
-    }
-
-    /// Lifts the tile with its rounded corners instead of a square snapshot.
-    private func tilePreview(at indexPath: IndexPath) -> UITargetedPreview? {
-        guard let cell = collectionView.cellForItem(at: indexPath) as? NoteCell else { return nil }
-        let parameters = UIPreviewParameters()
-        parameters.visiblePath = cell.previewPath
-        parameters.backgroundColor = .clear
-        return UITargetedPreview(view: cell.contentView, parameters: parameters)
     }
 }
 

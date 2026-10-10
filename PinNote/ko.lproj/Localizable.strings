@@ -39,6 +39,8 @@
 "list_write_first" = "첫 메모를 작성해 보세요.";
 "pin_toast_pinned" = "잠금 화면에 고정됨";
 "pin_toast_unpinned" = "잠금 화면에서 고정 해제됨";
+"list_menu_pin" = "잠금 화면에 고정";
+"list_menu_unpin" = "잠금 화면에서 고정 해제";
 "copy_toast_copied" = "클립보드에 복사됨";
 "schedule_toast_set" = "타이머 설정됨";
 "schedule_toast_cleared" = "타이머 해제됨";
