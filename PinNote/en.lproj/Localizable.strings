@@ -66,6 +66,8 @@
 "settings_sync_header" = "Keep your notes safe";
 "settings_appearance_header" = "Appearance";
 "settings_fonts_header" = "Fonts";
+"settings_cat_companion" = "Cat companion";
+"settings_cat_companion_footer" = "A little cat lives next to the title. It sleeps while the app is closed and wakes up when you open it.";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "Upgrade";
 "settings_upgrade_footer" = "Monthly renews automatically. Lifetime is a one-time purchase.";

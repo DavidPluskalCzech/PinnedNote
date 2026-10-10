@@ -66,6 +66,8 @@
 "settings_sync_header" = "नोटहरू सुरक्षित रूपमा राख्नुहोस्";
 "settings_appearance_header" = "थिम";
 "settings_fonts_header" = "फन्ट";
+"settings_cat_companion" = "बिरालो साथी";
+"settings_cat_companion_footer" = "शीर्षकको छेउमा एउटा सानो बिरालो बस्छ। एप बन्द हुँदा ऊ सुत्छ र खोल्दा ब्युँझन्छ।";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "अपग्रेड";
 "settings_upgrade_footer" = "मासिक सदस्यता स्वतः नवीकरण हुन्छ। आजीवन योजना एक पटकको खरिद हो।";

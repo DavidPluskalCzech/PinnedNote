@@ -102,6 +102,48 @@ final class SettingsViewController: UIViewController {
         }
     }
 
+    @objc private func catCompanionToggled(_ sender: UISwitch) {
+        // Part of Pro: after the trial, turning it on asks to upgrade instead.
+        guard !sender.isOn || CatCompanion.isAvailable else {
+            sender.setOn(false, animated: true)
+            presentPNAlert(
+                title: NSLocalizedString("detail_trial_ended_title", comment: ""),
+                message: NSLocalizedString("detail_trial_ended_message", comment: ""),
+                actions: [
+                    PNAlertAction(title: NSLocalizedString("detail_cancel", comment: ""), style: .cancel),
+                    PNAlertAction(title: NSLocalizedString("detail_upgrade", comment: "")) { [weak self] in
+                        self?.scrollToUpgrade()
+                    },
+                ]
+            )
+            return
+        }
+        CatCompanion.isEnabled = sender.isOn
+    }
+
+    private func scrollToUpgrade() {
+        guard let section = visibleSections().firstIndex(of: .upgrade) else { return }
+        tableView.scrollToRow(at: IndexPath(row: 0, section: section), at: .top, animated: true)
+    }
+
+    private func companionFooter() -> UIView {
+        let label = UILabel()
+        label.text = NSLocalizedString("settings_cat_companion_footer", comment: "")
+        label.font = .systemFont(ofSize: 13)
+        label.textColor = .pnSecondary
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let container = UIView()
+        container.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
+            label.leadingAnchor.constraint(equalTo: container.layoutMarginsGuide.leadingAnchor),
+            label.trailingAnchor.constraint(equalTo: container.layoutMarginsGuide.trailingAnchor),
+        ])
+        return container
+    }
+
     @objc private func iCloudToggled(_ sender: UISwitch) {
         let didChange = NoteStore.shared.setICloudEnabled(sender.isOn)
         if !didChange {
@@ -119,13 +161,13 @@ private extension SettingsViewController {
     var pm: PurchaseManager { PurchaseManager.shared }
 
     enum Section: Int, CaseIterable {
-        case sync, theme, font, status, upgrade, support
+        case sync, theme, font, companion, status, upgrade, support
     }
 
     func visibleSections() -> [Section] {
         pm.isPro
-            ? [.sync, .theme, .font, .status, .support]
-            : [.sync, .theme, .font, .status, .upgrade, .support]
+            ? [.sync, .theme, .font, .companion, .status, .support]
+            : [.sync, .theme, .font, .companion, .status, .upgrade, .support]
     }
 
     func rowsInSupport() -> Int { 3 }  // restore + feedback + version
@@ -156,6 +198,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         case .sync:    return NSLocalizedString("settings_sync_header",       comment: "")
         case .theme:   return NSLocalizedString("settings_appearance_header", comment: "")
         case .font:    return NSLocalizedString("settings_fonts_header",      comment: "")
+        case .companion: return nil
         case .status:  return NSLocalizedString("settings_pro_header",        comment: "")
         case .upgrade: return nil
         case .support: return nil
@@ -169,6 +212,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         let s = visibleSections()[section]
         if s == .status { return UIView() }   // empty — height controlled below
+        if s == .companion { return companionFooter() }
         guard (s == .upgrade && !pm.isPro) || (s == .support && pm.isPro) else { return nil }
         let footer = UpgradeFooterView()
         footer.onPrivacy = { [weak self] in self?.openURL(SettingsViewController.privacyPolicyURL) }
@@ -179,6 +223,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
         let s = visibleSections()[section]
         if s == .status  { return CGFloat.leastNormalMagnitude }
+        if s == .companion { return UITableView.automaticDimension }
         if s == .upgrade || (s == .support && pm.isPro) { return UITableView.automaticDimension }
         return CGFloat.leastNormalMagnitude
     }
@@ -222,6 +267,19 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
                 withIdentifier: FontPickerCell.reuseID, for: indexPath
             ) as! FontPickerCell
             cell.onSelect = { font in ThemeManager.shared.setFont(font) }
+            return cell
+
+        // ── Cat companion ────────────────────────────────────────────
+        case .companion:
+            let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
+            cell.backgroundColor = .pnSurface
+            cell.textLabel?.text = NSLocalizedString("settings_cat_companion", comment: "")
+            cell.selectionStyle  = .none
+            let toggle           = UISwitch()
+            toggle.isOn          = CatCompanion.isActive
+            toggle.onTintColor   = .pnPrimary
+            toggle.addTarget(self, action: #selector(catCompanionToggled(_:)), for: .valueChanged)
+            cell.accessoryView   = toggle
             return cell
 
         // ── Pro status ───────────────────────────────────────────────
@@ -313,7 +371,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView,
                    shouldHighlightRowAt indexPath: IndexPath) -> Bool {
         let s = visibleSections()[indexPath.section]
-        return s != .upgrade && s != .theme && s != .font
+        return s != .upgrade && s != .theme && s != .font && s != .companion
     }
 }
 

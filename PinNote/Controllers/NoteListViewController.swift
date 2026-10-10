@@ -6,6 +6,7 @@ final class NoteListViewController: UIViewController {
     // MARK: - Subviews
 
     private let titleLabel   = UILabel()
+    private let catView      = CatCompanionView()
     private let masonryLayout = MasonryLayout()
     private lazy var collectionView = UICollectionView(frame: .zero, collectionViewLayout: masonryLayout)
     private let bottomBar    = NoteListBottomBar()
@@ -52,6 +53,24 @@ final class NoteListViewController: UIViewController {
             self, selector: #selector(showStorageError),
             name: .pnStorageError, object: nil
         )
+        for name in [Notification.Name.pnCatCompanionChanged, .pnPurchaseStateChanged] {
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(refreshCatCompanion), name: name, object: nil
+            )
+        }
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appBecameActive),
+            name: UIApplication.didBecomeActiveNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appWillResignActive),
+            name: UIApplication.willResignActiveNotification, object: nil
+        )
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        wakeCatSoon()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -77,6 +96,18 @@ final class NoteListViewController: UIViewController {
         ])
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
+
+        // The cat sits at the right of the title, on the title's baseline.
+        catView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(catView)
+        NSLayoutConstraint.activate([
+            catView.trailingAnchor.constraint(equalTo: readableGuide.trailingAnchor, constant: -PN.padding),
+            catView.bottomAnchor.constraint(equalTo: titleLabel.lastBaselineAnchor, constant: 8),
+            catView.heightAnchor.constraint(equalToConstant: 48),
+            catView.widthAnchor.constraint(equalToConstant: 72),
+            catView.leadingAnchor.constraint(greaterThanOrEqualTo: titleLabel.trailingAnchor, constant: 4),
+        ])
+        catView.isHidden = !CatCompanion.isActive
 
         // Two-column grid of note tiles
         masonryLayout.delegate                      = self
@@ -369,6 +400,36 @@ final class NoteListViewController: UIViewController {
         )
     }
 
+    // MARK: - Cat companion
+
+    @objc private func refreshCatCompanion() {
+        let active = CatCompanion.isActive
+        guard catView.isHidden == active else { return }
+        catView.isHidden = !active
+        if active {
+            catView.fallAsleep(animated: false)
+            wakeCatSoon()
+        }
+    }
+
+    /// The cat sleeps on for a few seconds after the list comes into view, then wakes.
+    private func wakeCatSoon() {
+        guard CatCompanion.isActive else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+            guard let self, self.view.window != nil,
+                  UIApplication.shared.applicationState == .active else { return }
+            self.catView.wakeUp()
+        }
+    }
+
+    @objc private func appBecameActive() {
+        wakeCatSoon()
+    }
+
+    @objc private func appWillResignActive() {
+        catView.fallAsleep()
+    }
+
     // MARK: - Tile menu
 
     /// Long press on a tile: lift it and show the pin / delete menu under it.
@@ -469,6 +530,7 @@ final class NoteListViewController: UIViewController {
         bottomBar.refreshColors()
         trialBanner.refreshColors()
         emptyState.refreshColors()
+        catView.applyColors()
         let titleFont = UIFont(name: "BradleyHandITCTT-Bold", size: 44) ?? PN.font(44, bold: true)
         titleLabel.attributedText = NSAttributedString(string: "PinnedNote", attributes: [
             .font:        titleFont,

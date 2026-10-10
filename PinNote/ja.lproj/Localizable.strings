@@ -66,6 +66,8 @@
 "settings_sync_header" = "メモを安全に保管";
 "settings_appearance_header" = "テーマ";
 "settings_fonts_header" = "フォント";
+"settings_cat_companion" = "ネコのおともだち";
+"settings_cat_companion_footer" = "タイトルの横に小さなネコがいます。アプリを閉じている間は眠り、開くと目を覚まします。";
 "settings_pro_header" = "PinnedNote Pro";
 "settings_upgrade_header" = "アップグレード";
 "settings_upgrade_footer" = "月額プランは自動更新されます。買い切りプランは一度のみの購入です。";
