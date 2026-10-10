@@ -325,11 +325,69 @@ private struct LiveActivityCheckbox: Shape {
     }
 }
 
+/// Picks the layout for where the activity is shown: the full banner on the Lock
+/// Screen, a compact one for the small slots (Apple Watch Smart Stack, CarPlay).
 struct PinNoteAdaptiveActivityView: View {
     let context: ActivityViewContext<PinNoteActivityAttributes>
 
     var body: some View {
-        PinNoteBannerView(context: context)
+        if #available(iOS 18.0, *) {
+            PinNoteFamilyActivityView(context: context)
+        } else {
+            PinNoteBannerView(context: context)
+        }
+    }
+}
+
+@available(iOS 18.0, *)
+private struct PinNoteFamilyActivityView: View {
+    @Environment(\.activityFamily) private var family
+    let context: ActivityViewContext<PinNoteActivityAttributes>
+
+    var body: some View {
+        switch family {
+        case .small:
+            PinNoteSmallActivityView(context: context)
+        default:
+            PinNoteBannerView(context: context)
+        }
+    }
+}
+
+/// The note for small slots — Apple Watch and CarPlay: the title and as many
+/// lines of the note as fit, instead of the Dynamic Island's few characters.
+private struct PinNoteSmallActivityView: View {
+    let context: ActivityViewContext<PinNoteActivityAttributes>
+
+    private var primaryColor: Color {
+        if context.state.isDarkTheme { return Color(red: 0.94, green: 0.92, blue: 0.86) }
+        return context.state.usesBlossomTheme ? Color(red: 0.55, green: 0.33, blue: 0.41) : Color(white: 0.08)
+    }
+
+    private var bodyText: String {
+        context.state.hasExplicitTitle ? context.state.bannerBodyPreview : context.state.bodyPreview
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(context.state.title)
+                .font(.note(context.state.appFont, size: 15))
+                .foregroundColor(primaryColor)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+            if !bodyText.isEmpty {
+                LiveActivityChecklistText(
+                    bodyText,
+                    fontSize: 12,
+                    color: primaryColor,
+                    maxLines: 3,
+                    allowsColumns: false
+                )
+                .environment(\.noteFont, context.state.appFont)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 2)
     }
 }
 
@@ -426,7 +484,14 @@ struct PinNoteLiveActivityBundle: WidgetBundle {
 
 struct PinNoteLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
-        makePinNoteActivityConfiguration(useAdaptiveBanner: true)
+        if #available(iOS 18.0, *) {
+            // Opt in to the small layout, so Apple Watch and CarPlay get a proper
+            // view of the note instead of the Dynamic Island's compact strip.
+            return makePinNoteActivityConfiguration(useAdaptiveBanner: true)
+                .supplementalActivityFamilies([.small, .medium])
+        } else {
+            return makePinNoteActivityConfiguration(useAdaptiveBanner: true)
+        }
     }
 }
 
