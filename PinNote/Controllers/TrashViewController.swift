@@ -34,6 +34,23 @@ final class TrashViewController: UIViewController {
         title = NSLocalizedString("trash_title", comment: "")
         view.backgroundColor = .pnBackground
 
+        // The app's hand-drawn back arrow, as in the note detail.
+        let back = HandDrawnBackButton()
+        back.tintColor = .pnPrimary
+        back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
+        back.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            back.widthAnchor.constraint(equalToConstant: 44),
+            back.heightAnchor.constraint(equalToConstant: 44),
+        ])
+        navigationItem.hidesBackButton = true
+        let backItem = UIBarButtonItem(customView: back)
+        if #available(iOS 26.0, *) {
+            // Just the brush arrow, without the Liquid Glass capsule behind it.
+            backItem.hidesSharedBackground = true
+        }
+        navigationItem.leftBarButtonItem = backItem
+
         // How the trash works, kept above the notes.
         infoLabel.text = NSLocalizedString("settings_trash_footer", comment: "")
         infoLabel.font = .systemFont(ofSize: 13)
@@ -89,10 +106,21 @@ final class TrashViewController: UIViewController {
         }
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // A custom back button turns off the edge swipe back; keep it working.
+        navigationController?.interactivePopGestureRecognizer?.delegate = self
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         countdownTimer?.invalidate()
         countdownTimer = nil
+    }
+
+    @objc private func goBack() {
+        navigationController?.popViewController(animated: true)
     }
 
     // MARK: - Updates
@@ -243,5 +271,13 @@ extension TrashViewController: UICollectionViewDataSource, UICollectionViewDeleg
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .fittingSizeLevel
         ).height
+    }
+}
+
+// MARK: - Swipe back
+
+extension TrashViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        (navigationController?.viewControllers.count ?? 0) > 1
     }
 }

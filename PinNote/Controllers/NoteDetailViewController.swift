@@ -88,6 +88,8 @@ final class NoteDetailViewController: UIViewController {
     private var isApplyingListParagraphStyles = false
     private var isAnimatingKeyboardLayout = false
     private var isKeepingSelectionOutOfListPrefix = false
+    /// Edge swipes the text view's scrolling already waits for.
+    private var requiredBackGestures: [UIGestureRecognizer] = []
     /// The selection when a tap on a checkbox began; set only while that tap is in
     /// progress. The tap just toggles the box: it doesn't open the keyboard or move
     /// the cursor.
@@ -179,6 +181,28 @@ final class NoteDetailViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         if isNew { textView.becomeFirstResponder() }
+        letBackSwipeWinOverText()
+    }
+
+    /// A swipe back from the left edge must close the note even when it starts over
+    /// the text: the text view's scrolling waits until the edge swipe has failed.
+    /// Covers the navigation controller's swipe-back and the edge gesture of the
+    /// zoom transition (iOS 18), which the system adds once the note is shown.
+    private func letBackSwipeWinOverText() {
+        var edgeGestures: [UIGestureRecognizer] = []
+        if let pop = navigationController?.interactivePopGestureRecognizer {
+            edgeGestures.append(pop)
+        }
+        var views: [UIView] = [view]
+        if let navView = navigationController?.view { views.append(navView) }
+        if let window = view.window { views.append(window) }
+        for host in views {
+            edgeGestures += (host.gestureRecognizers ?? []).filter { $0 is UIScreenEdgePanGestureRecognizer }
+        }
+        for edge in edgeGestures where !requiredBackGestures.contains(where: { $0 === edge }) {
+            textView.panGestureRecognizer.require(toFail: edge)
+            requiredBackGestures.append(edge)
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -304,6 +328,10 @@ final class NoteDetailViewController: UIViewController {
         )
         refreshRuledBackground()
         textView.delegate            = self
+        // Lay out the whole note, not just the visible part: with partial layout the
+        // text view only estimates the content height, and on long notes that
+        // estimate falls far short, so it won't scroll to the end.
+        textView.layoutManager.allowsNonContiguousLayout = false
         textView.autocorrectionType  = .yes
         textView.isSelectable        = true
         textView.textDragInteraction?.isEnabled = false

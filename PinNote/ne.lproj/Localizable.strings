@@ -67,8 +67,10 @@
 "settings_appearance_header" = "थिम";
 "settings_fonts_header" = "फन्ट";
 "settings_cat_companion" = "बिरालो साथी";
+"settings_cat_companion_toggle" = "बिरालो ल्याउनुहोस्";
 "settings_cat_companion_footer" = "शीर्षकको छेउमा एउटा सानो बिरालो बस्छ। एप बन्द हुँदा ऊ सुत्छ र खोल्दा ब्युँझन्छ।";
-"settings_trash" = "हालै मेटाइएका";
+"settings_trash" = "रद्दी टोकरी";
+"settings_trash_header" = "हालै मेटाइएका";
 "settings_trash_footer" = "मेटाइएका नोटहरू यहाँ ३० दिनसम्म रहन्छन्, त्यसपछि स्थायी रूपमा मेटिन्छन्।";
 "trash_title" = "हालै मेटाइएका";
 "trash_empty" = "यहाँ केही छैन";
@@ -84,6 +86,7 @@
 "settings_upgrade_footer" = "मासिक सदस्यता स्वतः नवीकरण हुन्छ। आजीवन योजना एक पटकको खरिद हो।";
 "settings_pro_active" = "PinnedNote Pro — सक्रिय";
 "settings_icloud_sync" = "iCloud समिकरण";
+"settings_icloud_footer" = "आफ्ना उपकरणहरूबीच नोटहरू सिंक गर्नुहोस् र सुरक्षित राख्नुहोस्";
 "settings_days_remaining_singular" = "निःशुल्क परीक्षणका %d दिन बाँकी";
 "settings_days_remaining_plural" = "निःशुल्क परीक्षणका %d दिन बाँकी";
 "settings_trial_ended" = "निःशुल्क परीक्षण समाप्त";

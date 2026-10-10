@@ -67,8 +67,10 @@
 "settings_appearance_header" = "Appearance";
 "settings_fonts_header" = "Fonts";
 "settings_cat_companion" = "Cat companion";
+"settings_cat_companion_toggle" = "Bring the cat";
 "settings_cat_companion_footer" = "A little cat lives next to the title. It sleeps while the app is closed and wakes up when you open it.";
-"settings_trash" = "Recently Deleted";
+"settings_trash" = "Bin";
+"settings_trash_header" = "Recently Deleted";
 "settings_trash_footer" = "Deleted notes stay here for 30 days, then they're deleted for good.";
 "trash_title" = "Recently Deleted";
 "trash_empty" = "Nothing here";
@@ -84,6 +86,7 @@
 "settings_upgrade_footer" = "Monthly renews automatically. Lifetime is a one-time purchase.";
 "settings_pro_active" = "PinnedNote Pro — active";
 "settings_icloud_sync" = "iCloud Sync";
+"settings_icloud_footer" = "Sync your notes across your devices and keep them safe";
 "settings_days_remaining_singular" = "%d day remaining in free trial";
 "settings_days_remaining_plural" = "%d days remaining in free trial";
 "settings_trial_ended" = "Free trial ended";

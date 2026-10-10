@@ -74,6 +74,7 @@ final class NoteListViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        flushPendingGridReload()
         if !hasPlayedLanding {
             hasPlayedLanding = true
             playLanding()
@@ -117,9 +118,9 @@ final class NoteListViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Sync displayedIDs so applyDiff has a correct baseline after returning from detail
-        displayedIDs = NoteStore.shared.notes.map { $0.id }
-        collectionView.reloadData()
+        // Sync displayedIDs (in reloadGrid) so applyDiff has a correct baseline after
+        // returning from detail
+        reloadGrid()
         refreshEmptyState()
         if !hasPlayedLanding { prepareLanding() }
     }
@@ -253,7 +254,11 @@ final class NoteListViewController: UIViewController {
 
     // MARK: - Combine binding
 
-    private var displayedIDs: [UUID] = []
+    /// The notes the grid shows, in its order. Lags the store while a note is closing,
+    /// so the tile the zoom returns into keeps showing that note (see `reloadGrid`).
+    private var displayedNotes: [Note] = []
+    private var displayedIDs: [UUID] { displayedNotes.map(\.id) }
+    private var isGridReloadPending = false
     private var pendingAnimatedDeletionID: UUID?
 
     private func bindStore() {
@@ -271,8 +276,15 @@ final class NoteListViewController: UIViewController {
         selectedIDs = selectedIDs.intersection(Set(newIDs))
         refreshSelectionControls()
 
+        // While a note is closing, the grid catches up once the transition is over.
+        if navigationController?.transitionCoordinator != nil {
+            reloadGrid()
+            return
+        }
+
         guard oldIDs != newIDs else {
             // Same order/count — just reload visible cells to refresh content (e.g. date)
+            displayedNotes = newNotes
             collectionView.visibleCells.compactMap { $0 as? NoteCell }.forEach { cell in
                 guard let ip = collectionView.indexPath(for: cell),
                       ip.item < newNotes.count else { return }
@@ -295,7 +307,7 @@ final class NoteListViewController: UIViewController {
            !newIDs.contains(deletedID),
            let deletedRow = oldIDs.firstIndex(of: deletedID) {
             pendingAnimatedDeletionID = nil
-            displayedIDs = newIDs
+            displayedNotes = newNotes
             let indexPath = IndexPath(item: deletedRow, section: 0)
             collectionView.performBatchUpdates {
                 self.collectionView.deleteItems(at: [indexPath])
@@ -307,11 +319,46 @@ final class NoteListViewController: UIViewController {
         }
 
         pendingAnimatedDeletionID = nil
-        displayedIDs = newIDs
-
-        collectionView.reloadData()
+        reloadGrid()
         refreshEmptyState()
         refreshSelectionControls()
+    }
+
+    /// Reloads the tiles — but not while a note is closing: the zoom transition keeps
+    /// the tile it returns into hidden until it lands, and reloading would give that
+    /// tile to another note, which would then be missing until the end of the swipe.
+    private func reloadGrid() {
+        guard let coordinator = navigationController?.transitionCoordinator else {
+            reloadGridNow()
+            return
+        }
+        guard !isGridReloadPending else { return }
+        isGridReloadPending = true
+        // Caught up when the transition ends, or in viewDidAppear, whichever is first.
+        // A coordinator that has already wrapped up won't call back, so then (and as a
+        // backstop) catch up just after the transition's own length.
+        let registered = coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            self?.flushPendingGridReload()
+        }
+        let delay = registered ? coordinator.transitionDuration + 0.25 : 0.05
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, self.navigationController?.transitionCoordinator == nil else { return }
+            self.flushPendingGridReload()
+        }
+    }
+
+    private func flushPendingGridReload() {
+        guard isGridReloadPending else { return }
+        isGridReloadPending = false
+        reloadGridNow()
+        refreshEmptyState()
+        refreshSelectionControls()
+    }
+
+    private func reloadGridNow() {
+        displayedNotes = NoteStore.shared.notes
+        collectionView.reloadData()
+        masonryLayout.invalidateLayout()
     }
 
     // MARK: - Lock-screen intent notification
@@ -374,8 +421,27 @@ final class NoteListViewController: UIViewController {
             navigationController?.popToViewController(self, animated: false)
         }
 
+        pushDetail(for: note)
+    }
+
+    /// Opens a note by growing its tile to fill the screen (and shrinking back into
+    /// it on close). Before iOS 18 it slides in as a normal push.
+    private func pushDetail(for note: Note) {
         let vc = NoteDetailViewController(note: note)
+        if #available(iOS 18.0, *) {
+            let noteID = note.id
+            vc.preferredTransition = .zoom { [weak self] _ in
+                // Looked up each time: the tile may have moved or been reused.
+                self?.tileView(for: noteID)
+            }
+        }
         navigationController?.pushViewController(vc, animated: true)
+    }
+
+    private func tileView(for noteID: UUID) -> UIView? {
+        // By what the grid shows now, which can lag the store while a note closes.
+        guard let index = displayedIDs.firstIndex(of: noteID) else { return nil }
+        return collectionView.cellForItem(at: IndexPath(item: index, section: 0))?.contentView
     }
 
     private func setListEditMode(_ editing: Bool) {
@@ -397,7 +463,7 @@ final class NoteListViewController: UIViewController {
     }
 
     private func syncVisibleSelectionCells(animated: Bool) {
-        let notes = NoteStore.shared.notes
+        let notes = displayedNotes
         collectionView.indexPathsForVisibleItems.forEach { indexPath in
             guard indexPath.item < notes.count,
                   let cell = collectionView.cellForItem(at: indexPath) as? NoteCell else { return }
@@ -495,11 +561,11 @@ final class NoteListViewController: UIViewController {
     private func showTileMenu(at indexPath: IndexPath) {
         guard !isInEditMode,
               presentedViewController == nil,
-              indexPath.item < NoteStore.shared.notes.count,
+              indexPath.item < displayedNotes.count,
               let cell = collectionView.cellForItem(at: indexPath) else { return }
 
-        let noteID = NoteStore.shared.notes[indexPath.item].id
-        let isPinned = NoteStore.shared.notes[indexPath.item].isPinned
+        let noteID = displayedNotes[indexPath.item].id
+        let isPinned = displayedNotes[indexPath.item].isPinned
 
         // Capture the tile at rest, not mid press.
         cell.isHighlighted = false
@@ -684,13 +750,13 @@ final class NoteListViewController: UIViewController {
 extension NoteListViewController: UICollectionViewDataSource {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        NoteStore.shared.notes.count
+        displayedNotes.count
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: NoteCell.reuseID, for: indexPath) as! NoteCell
-        guard indexPath.item < NoteStore.shared.notes.count else { return cell }
-        let note = NoteStore.shared.notes[indexPath.item]
+        guard indexPath.item < displayedNotes.count else { return cell }
+        let note = displayedNotes[indexPath.item]
         cell.configure(with: note, editing: isInEditMode, selected: selectedIDs.contains(note.id))
         return cell
     }
@@ -701,7 +767,7 @@ extension NoteListViewController: UICollectionViewDataSource {
 extension NoteListViewController: MasonryLayoutDelegate {
 
     func masonryLayout(_ layout: MasonryLayout, heightForItemAt indexPath: IndexPath, itemWidth: CGFloat) -> CGFloat {
-        let notes = NoteStore.shared.notes
+        let notes = displayedNotes
         guard indexPath.item < notes.count else { return 0 }
         let note = notes[indexPath.item]
 
@@ -731,8 +797,8 @@ extension NoteListViewController: UICollectionViewDelegate {
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         collectionView.deselectItem(at: indexPath, animated: false)
-        guard indexPath.item < NoteStore.shared.notes.count else { return }
-        let note = NoteStore.shared.notes[indexPath.item]
+        guard indexPath.item < displayedNotes.count else { return }
+        let note = displayedNotes[indexPath.item]
 
         if isInEditMode {
             // Toggle selection manually
@@ -746,8 +812,7 @@ extension NoteListViewController: UICollectionViewDelegate {
             }
             refreshSelectionControls()
         } else {
-            let vc = NoteDetailViewController(note: note)
-            navigationController?.pushViewController(vc, animated: true)
+            pushDetail(for: note)
         }
     }
 }

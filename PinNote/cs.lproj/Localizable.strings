@@ -67,8 +67,10 @@
 "settings_appearance_header" = "Vzhled";
 "settings_fonts_header" = "Písmo";
 "settings_cat_companion" = "Kočičí společník";
+"settings_cat_companion_toggle" = "Přivést kočku";
 "settings_cat_companion_footer" = "Vedle nadpisu bydlí malá kočka. Když je aplikace zavřená, spí, a když ji otevřeš, probudí se.";
 "settings_trash" = "Koš";
+"settings_trash_header" = "Nedávno smazané";
 "settings_trash_footer" = "Smazané poznámky tu zůstanou 30 dní, pak se smažou natrvalo.";
 "trash_title" = "Koš";
 "trash_empty" = "Koš je prázdný";
@@ -84,6 +86,7 @@
 "settings_upgrade_footer" = "Měsíční předplatné se automaticky obnovuje. Doživotní přístup je jednorázový nákup.";
 "settings_pro_active" = "PinnedNote Pro — aktivní";
 "settings_icloud_sync" = "iCloud synchronizace";
+"settings_icloud_footer" = "Synchronizuj poznámky mezi svými zařízeními a měj je v bezpečí";
 "settings_days_remaining_singular" = "Ve zkušební verzi zbývá %d den";
 "settings_days_remaining_plural" = "Ve zkušební verzi zbývá %d dní";
 "settings_trial_ended" = "Zkušební verze skončila";

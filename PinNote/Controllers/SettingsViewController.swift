@@ -45,7 +45,14 @@ final class SettingsViewController: UIViewController {
     // MARK: - Setup
 
     private func setupNavBar() {
-        title = NSLocalizedString("settings_title", comment: "")
+        // Centred title, 10pt larger than a standard bar title; coloured like one.
+        let titleLabel = UILabel()
+        titleLabel.text = NSLocalizedString("settings_title", comment: "")
+        titleLabel.font = .systemFont(ofSize: 27, weight: .semibold)
+        titleLabel.textColor = .label
+        titleLabel.accessibilityTraits = .header
+        navigationItem.titleView = titleLabel
+        navigationItem.leftBarButtonItem = nil
         navigationController?.navigationBar.tintColor = .pnPrimary
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done, target: self, action: #selector(close)
@@ -132,24 +139,6 @@ final class SettingsViewController: UIViewController {
         tableView.scrollToRow(at: IndexPath(row: 0, section: section), at: .top, animated: true)
     }
 
-    private func footerLabel(_ text: String) -> UIView {
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 13)
-        label.textColor = .pnSecondary
-        label.numberOfLines = 0
-        label.translatesAutoresizingMaskIntoConstraints = false
-        let container = UIView()
-        container.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
-            label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
-            label.leadingAnchor.constraint(equalTo: container.layoutMarginsGuide.leadingAnchor),
-            label.trailingAnchor.constraint(equalTo: container.layoutMarginsGuide.trailingAnchor),
-        ])
-        return container
-    }
-
     @objc private func iCloudToggled(_ sender: UISwitch) {
         let didChange = NoteStore.shared.setICloudEnabled(sender.isOn)
         if !didChange {
@@ -204,8 +193,8 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         case .sync:    return NSLocalizedString("settings_sync_header",       comment: "")
         case .theme:   return NSLocalizedString("settings_appearance_header", comment: "")
         case .font:    return NSLocalizedString("settings_fonts_header",      comment: "")
-        case .companion: return nil
-        case .trash:     return nil
+        case .companion: return NSLocalizedString("settings_cat_companion", comment: "")
+        case .trash:     return NSLocalizedString("settings_trash_header", comment: "")
         case .status:  return NSLocalizedString("settings_pro_header",        comment: "")
         case .upgrade: return nil
         case .support: return nil
@@ -213,14 +202,19 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        nil  // all footers handled via viewForFooterInSection
+        // Explanations under options: system footers, which wrap and size themselves.
+        switch visibleSections()[section] {
+        case .sync:      return NSLocalizedString("settings_icloud_footer", comment: "")
+        case .companion: return NSLocalizedString("settings_cat_companion_footer", comment: "")
+        case .trash:     return NSLocalizedString("settings_trash_footer", comment: "")
+        default:         return nil  // the rest are handled via viewForFooterInSection
+        }
     }
 
     func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         let s = visibleSections()[section]
         if s == .status { return UIView() }   // empty — height controlled below
-        if s == .companion { return footerLabel(NSLocalizedString("settings_cat_companion_footer", comment: "")) }
-        if s == .trash { return footerLabel(NSLocalizedString("settings_trash_footer", comment: "")) }
+        if s == .companion || s == .trash || s == .sync { return nil }  // titleForFooterInSection
         guard (s == .upgrade && !pm.isPro) || (s == .support && pm.isPro) else { return nil }
         let footer = UpgradeFooterView()
         footer.onPrivacy = { [weak self] in self?.openURL(SettingsViewController.privacyPolicyURL) }
@@ -231,7 +225,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
         let s = visibleSections()[section]
         if s == .status  { return CGFloat.leastNormalMagnitude }
-        if s == .companion || s == .trash { return UITableView.automaticDimension }
+        if s == .companion || s == .trash || s == .sync { return UITableView.automaticDimension }
         if s == .upgrade || (s == .support && pm.isPro) { return UITableView.automaticDimension }
         return CGFloat.leastNormalMagnitude
     }
@@ -281,7 +275,7 @@ extension SettingsViewController: UITableViewDataSource, UITableViewDelegate {
         case .companion:
             let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
             cell.backgroundColor = .pnSurface
-            cell.textLabel?.text = NSLocalizedString("settings_cat_companion", comment: "")
+            cell.textLabel?.text = NSLocalizedString("settings_cat_companion_toggle", comment: "")
             cell.selectionStyle  = .none
             let toggle           = UISwitch()
             toggle.isOn          = CatCompanion.isActive

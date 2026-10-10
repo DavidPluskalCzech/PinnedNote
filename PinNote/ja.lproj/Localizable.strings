@@ -67,8 +67,10 @@
 "settings_appearance_header" = "テーマ";
 "settings_fonts_header" = "フォント";
 "settings_cat_companion" = "ネコのおともだち";
+"settings_cat_companion_toggle" = "ネコを連れてくる";
 "settings_cat_companion_footer" = "タイトルの横に小さなネコがいます。アプリを閉じている間は眠り、開くと目を覚まします。";
-"settings_trash" = "最近削除した項目";
+"settings_trash" = "ゴミ箱";
+"settings_trash_header" = "最近削除した項目";
 "settings_trash_footer" = "削除したメモは30日間ここに保管され、その後完全に削除されます。";
 "trash_title" = "最近削除した項目";
 "trash_empty" = "項目はありません";
@@ -84,6 +86,7 @@
 "settings_upgrade_footer" = "月額プランは自動更新されます。買い切りプランは一度のみの購入です。";
 "settings_pro_active" = "PinnedNote Pro — 有効";
 "settings_icloud_sync" = "iCloud同期";
+"settings_icloud_footer" = "デバイス間でメモを同期して、安全に保管できます";
 "settings_days_remaining_singular" = "無料トライアル残り%d日";
 "settings_days_remaining_plural" = "無料トライアル残り%d日";
 "settings_trial_ended" = "無料トライアル終了";
